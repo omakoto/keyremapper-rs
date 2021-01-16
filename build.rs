@@ -62,4 +62,5 @@ fn main() {
     compile_resources("src/res/icons.gresource");
     compile_resources("examples/shortcut-remote-remapper/icons.gresource");
     compile_resources("examples/trackpoint-speedup/icons.gresource");
+    compile_resources("examples/satechi-remapper/icons.gresource");
 }
