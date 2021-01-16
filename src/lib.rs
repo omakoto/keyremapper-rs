@@ -961,7 +961,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
             };
 
             for ev in &events {
-                log::debug!("  {}", ev);
+                log::debug!("Input event: {}", ev);
             }
 
             (*callbacks.on_events)(&key_remapper, &device, &events);
