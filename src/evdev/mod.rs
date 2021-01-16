@@ -144,7 +144,7 @@ impl InputEvent {
 
     /// Return true if it's a SYN_REPORT event.
     pub fn is_syn_report(&self) -> bool {
-        return self.event_type == ec::EventType::EV_KEY
+        return self.event_type == ec::EventType::EV_SYN
             && self.code == ec::SYN_REPORT
             && self.value == 0;
     }
@@ -194,30 +194,42 @@ fn test_input_event_format_ev_key_unknown() {
 // TODO Add more tests
 
 #[derive(Debug, Clone)]
+struct InputEventTrackerInner {
+    key_states: HashMap<i32, i32>,
+    syn_report_pending: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct InputEventTracker {
-    key_states: Arc<RwLock<HashMap<i32, i32>>>,
+    inner: Arc<RwLock<InputEventTrackerInner>>,
 }
 
 impl InputEventTracker {
     pub fn new() -> InputEventTracker {
         return InputEventTracker {
-            key_states: Arc::new(RwLock::new(HashMap::new())),
+            inner: Arc::new(RwLock::new(InputEventTrackerInner {
+                key_states: HashMap::new(),
+                syn_report_pending: false,
+            })),
         };
     }
 
     pub fn key_state(&self, code: i32) -> i32 {
-        let ks = self.key_states.read().unwrap();
-        return *ks.get(&code).unwrap_or(&0);
+        let ks = self.inner.read().unwrap();
+        return *ks.key_states.get(&code).unwrap_or(&0);
     }
 
     pub fn should_send(&self, ev: &InputEvent) -> bool {
-        let ks = self.key_states.read().unwrap();
-        return InputEventTracker::should_send_no_lock(&ks, ev);
+        let inner = self.inner.read().unwrap();
+        return InputEventTracker::should_send_no_lock(&inner, ev);
     }
 
-    fn should_send_no_lock(map: &HashMap<i32, i32>, ev: &InputEvent) -> bool {
+    fn should_send_no_lock(inner: &InputEventTrackerInner, ev: &InputEvent) -> bool {
+        if ev.is_syn_report() && !inner.syn_report_pending {
+            return false;
+        }
         if ev.event_type == ec::EventType::EV_KEY {
-            let current = *map.get(&ev.code).unwrap_or(&0);
+            let current = *inner.key_states.get(&ev.code).unwrap_or(&0);
             if ev.value == 0 {
                 if current == 0 {
                     return false; // Don't send if not pressed.
@@ -238,11 +250,13 @@ impl InputEventTracker {
     }
 
     pub fn on_event_sent(&self, ev: &InputEvent) {
-        let mut ks = self.key_states.write().unwrap();
-        if ev.event_type == ec::EventType::EV_KEY && InputEventTracker::should_send_no_lock(&ks, ev)
+        let mut inner = self.inner.write().unwrap();
+        if ev.event_type == ec::EventType::EV_KEY
+            && InputEventTracker::should_send_no_lock(&inner, ev)
         {
-            ks.insert(ev.code, ev.value);
+            inner.key_states.insert(ev.code, ev.value);
         }
+        inner.syn_report_pending = !ev.is_syn_report();
     }
 
     pub fn reset(&self) -> Vec<InputEvent> {
@@ -253,12 +267,12 @@ impl InputEventTracker {
     where
         F: FnMut(&InputEvent) -> Result<(), Box<dyn Error>>,
     {
-        let mut ks = self.key_states.write().unwrap();
+        let mut inner = self.inner.write().unwrap();
 
         let mut reset_events = vec![];
 
         use itertools::Itertools;
-        for (code, value) in ks.iter().sorted() {
+        for (code, value) in inner.key_states.iter().sorted() {
             if *value > 0 {
                 let ev = InputEvent::new(ec::EventType::EV_KEY, *code, 0);
                 reset_events.push(ev);
@@ -266,7 +280,8 @@ impl InputEventTracker {
                 callback(&ev)?;
             }
         }
-        ks.clear();
+        inner.key_states.clear();
+        inner.syn_report_pending = false;
         return Ok(reset_events);
     }
 }
