@@ -16,6 +16,10 @@ path = "examples/myevtest.rs"
 name = "shortcut-remote-remapper"
 path = "examples/shortcut-remote-remapper/shortcut-remote-remapper.rs"
 
+[[example]]
+name = "trackpoint-speedup"
+path = "examples/trackpoint-speedup/trackpoint-speedup.rs"
+
 [dependencies]
 anyhow = "1"
 clap="2"

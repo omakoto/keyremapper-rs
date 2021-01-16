@@ -1,5 +1,4 @@
 //! Keyboard remapper for https://smile.amazon.com/gp/product/B01NC2LEYP
-#[macro_use]
 extern crate lazy_static;
 
 use std::{cell::RefCell, error::Error, process, sync::Arc, time::Duration};
@@ -171,7 +170,7 @@ impl Remapper {
     }
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref REMAPPER: Arc<ReentrantMutex<RefCell<Remapper>>> =
         Arc::new(ReentrantMutex::new(RefCell::new(Remapper::new())));
 }
