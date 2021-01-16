@@ -554,17 +554,46 @@ impl KeyRemapper {
         return ret;
     }
 
-    /// Create a new uinput device using the given `KeyRemapperConfiguration` with a suffix.
+    /// Create a new uinput device supporting given events using the with a suffix.
     pub fn create_uinput(
         &self,
-        config: &KeyRemapperConfiguration,
         name_suffix: &str,
         supported_events: &EventsDescriptor,
     ) -> SyncedUinput {
-        let u = create_uinput(&config, name_suffix, supported_events)
+        let u = create_uinput(&self.config, name_suffix, supported_events)
             .expect("failed to create uinput device");
         self.add_uinput(&u);
         return u;
+    }
+
+    /// Create a new uinput device supporting mouse events using the with a suffix.
+    pub fn create_mouse_uinput(&self, name_suffix: &str) -> SyncedUinput {
+        let mut supported_events = EventsDescriptor::default();
+        supported_events.events.insert(
+            ec::EventType::EV_KEY,
+            vec![
+                ec::BTN_LEFT,
+                ec::BTN_MIDDLE,
+                ec::BTN_RIGHT,
+                ec::BTN_SIDE,
+                ec::BTN_EXTRA,
+                ec::BTN_BACK,
+                ec::BTN_FORWARD,
+            ],
+        );
+        supported_events.events.insert(
+            ec::EventType::EV_REL,
+            vec![
+                ec::REL_X,
+                ec::REL_Y,
+                ec::REL_WHEEL,
+                ec::REL_HWHEEL,
+                ec::REL_WHEEL_HI_RES,
+                ec::REL_HWHEEL_HI_RES,
+            ],
+        );
+
+        return self.create_uinput(name_suffix, &supported_events);
     }
 
     fn add_uinput(&self, uinput: &SyncedUinput) {
