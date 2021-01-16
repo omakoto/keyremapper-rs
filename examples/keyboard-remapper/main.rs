@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let lock = STATE.lock();
         let mut state = lock.borrow_mut();
-        
+
         let is_thinkpad = device.name().starts_with("AT");
         let is_xkeys = device.name().starts_with("P. I.");
 
@@ -159,12 +159,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         if is_thinkpad && !is_caps_pressed {
             // Special for the thinkpad keyboard. Use INS/DEL as PAGEUP/DOWN, unless caps is pressed.
             match ev.code {
-                ec::KEY_INSERT => {ev.code = ec::KEY_PAGEUP;},
-                ec::KEY_DELETE => {ev.code = ec::KEY_PAGEDOWN;},
-                _ => {},
+                ec::KEY_INSERT => {
+                    ev.code = ec::KEY_PAGEUP;
+                }
+                ec::KEY_DELETE => {
+                    ev.code = ec::KEY_PAGEDOWN;
+                }
+                _ => {}
             }
         }
-
 
         km.send_event(&ev);
     });

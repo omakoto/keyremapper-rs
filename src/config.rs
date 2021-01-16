@@ -1,9 +1,12 @@
 use core::fmt::Debug;
-use std::{path::PathBuf, sync::Arc};
 use parking_lot::RwLock;
 use regex::Regex;
+use std::{path::PathBuf, sync::Arc};
 
-use crate::{KeyRemapper, evdev::{self, EventsDescriptor}};
+use crate::{
+    evdev::{self, EventsDescriptor},
+    KeyRemapper,
+};
 
 /// Stores callbacks for `KeyRemapperCallbacks`.
 /// It's extracted o implement the `Debug` trait, which `Fn` doesn't have.
@@ -16,7 +19,8 @@ pub(crate) struct KeyRemapperCallbacks {
 
     pub(crate) on_start: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
 
-    pub(crate) on_devices_detected: Arc<dyn Fn(&KeyRemapper, &[evdev::EvdevDevice]) + Send + Sync + 'static>,
+    pub(crate) on_devices_detected:
+        Arc<dyn Fn(&KeyRemapper, &[evdev::EvdevDevice]) + Send + Sync + 'static>,
     pub(crate) on_devices_not_found: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
     pub(crate) on_devices_lost: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
 

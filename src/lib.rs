@@ -1,19 +1,18 @@
 #![allow(dead_code)]
 
-use core::fmt::Debug;
+use std::os::unix::io::RawFd;
 use std::{
+    cell::RefCell,
     error::Error,
     mem::MaybeUninit,
-    path::Path,
     process::{self, Command},
     sync::Arc,
     thread,
     time::Duration,
 };
-use std::{os::unix::io::RawFd, path::PathBuf};
 
 use clap::{App, Arg};
-use parking_lot::RwLock;
+use parking_lot::ReentrantMutex;
 use rand::prelude::*;
 
 use evdev::{
@@ -25,12 +24,11 @@ use evdev::{
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 use notify_rust::{Notification, NotificationHandle, Timeout};
-use regex::Regex;
 use select::{pselect, FdSet};
 use singleton::ensure_singleton;
 use udev::UdevMonitor;
 
-
+pub mod config;
 pub mod evdev;
 pub(crate) mod native;
 pub mod res;
@@ -38,14 +36,12 @@ pub(crate) mod select;
 pub(crate) mod singleton;
 pub mod udev;
 pub mod ui;
-pub mod config;
 
 pub use crate::config::*;
 
 const UINPUT_DEVICE_NAME_PREFIX: &str = "key-remapper";
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
-
 
 /// Find all the evdev devices matching the given `KeyRemapperConfiguration`.
 fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDevice>> {
@@ -92,13 +88,6 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
     };
 
     for mut device in evdev::list_devices_from_path_with_filter("/dev/input/event*", filter)? {
-        // log::debug!(
-        //     "Device candidate: {} \"{}\" {} [{:?}]",
-        //     device.path(),
-        //     device.name(),
-        //     device.id_str(),
-        //     device.supported_events()
-        // );
         log::info!("Using device {} {}...", device.name(), device.id_str());
         if config.grab_devices {
             match device.grab(true) {
@@ -122,7 +111,7 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
 pub struct KeyRemapperInput {
     config: KeyRemapperConfiguration,
     devices: Vec<evdev::EvdevDevice>,
-    input_event_tracker: Arc<RwLock<InputEventTracker>>,
+    input_event_tracker: Arc<ReentrantMutex<RefCell<InputEventTracker>>>,
 }
 
 impl KeyRemapperInput {
@@ -133,7 +122,9 @@ impl KeyRemapperInput {
         return Ok(KeyRemapperInput {
             config: config,
             devices: vec![],
-            input_event_tracker: Arc::new(RwLock::new(InputEventTracker::new())),
+            input_event_tracker: Arc::new(ReentrantMutex::new(RefCell::new(
+                InputEventTracker::new(),
+            ))),
         });
     }
 
@@ -247,10 +238,10 @@ fn create_uinput(
 pub struct KeyRemapper {
     config: KeyRemapperConfiguration,
     uinput: Option<SyncedUinput>,
-    input: Arc<RwLock<KeyRemapperInput>>,
-    ui: Arc<RwLock<KeyRemapperUi>>,
+    input: Arc<ReentrantMutex<RefCell<KeyRemapperInput>>>,
+    ui: Arc<ReentrantMutex<RefCell<KeyRemapperUi>>>,
 
-    all_uinputs: Arc<RwLock<Vec<SyncedUinput>>>,
+    all_uinputs: Arc<ReentrantMutex<RefCell<Vec<SyncedUinput>>>>,
 }
 
 const MODIFIER_COUNT: usize = 8; // We need this for ModifierState as a const.
@@ -289,9 +280,9 @@ impl KeyRemapper {
         let ret = KeyRemapper {
             config: config,
             uinput: uinput,
-            input: Arc::new(RwLock::new(input)),
-            ui: Arc::new(RwLock::new(ui)),
-            all_uinputs: Arc::new(RwLock::new(vec![])),
+            input: Arc::new(ReentrantMutex::new(RefCell::new(input))),
+            ui: Arc::new(ReentrantMutex::new(RefCell::new(ui))),
+            all_uinputs: Arc::new(ReentrantMutex::new(RefCell::new(vec![]))),
         };
         if let Some(u) = ret.uinput.as_ref() {
             ret.add_uinput(&u);
@@ -342,8 +333,8 @@ impl KeyRemapper {
     }
 
     fn add_uinput(&self, uinput: &SyncedUinput) {
-        let mut all_uinputs = self.all_uinputs.write();
-        all_uinputs.push(uinput.clone());
+        let all_uinputs = self.all_uinputs.lock();
+        all_uinputs.borrow_mut().push(uinput.clone());
     }
 
     pub fn show_notiication(&self, message: &str) {
@@ -351,8 +342,9 @@ impl KeyRemapper {
     }
 
     pub fn show_notiication_with_timeout(&self, message: &str, timeout: Duration) {
-        let mut ui = self.ui.write();
-        ui.show_notiication_with_timeout(message, timeout);
+        let ui = self.ui.lock();
+        ui.borrow_mut()
+            .show_notiication_with_timeout(message, timeout);
     }
 
     pub fn get_active_window(&self) -> ui::WindowInfo {
@@ -397,16 +389,17 @@ impl KeyRemapper {
     }
 
     pub fn reset_out(&self) {
-        let all_uinputs = self.all_uinputs.read();
-        for uinput in all_uinputs.iter() {
+        let all_uinputs = self.all_uinputs.lock();
+        for uinput in all_uinputs.borrow_mut().iter() {
             uinput.reset().unwrap();
         }
     }
 
     pub fn get_in_key_state(&self, code: i32) -> i32 {
-        let input = self.input.read();
-        let tracker = input.input_event_tracker.read();
-        tracker.key_state(code)
+        let input_lock = self.input.lock();
+        let input_lock_mut = input_lock.borrow_mut();
+        let tracker = input_lock_mut.input_event_tracker.lock();
+        return tracker.borrow().key_state(code);
     }
 
     pub fn is_key_pressed(&self, code: i32) -> bool {
@@ -636,7 +629,8 @@ fn main_loop(key_remapper: &KeyRemapper) {
 
     'with_device_detection: loop {
         // First, find the target input devices.
-        let mut input = key_remapper.input.write();
+        let input_lock = key_remapper.input.lock();
+        let mut input = input_lock.borrow_mut();
         input
             .refresh_devices()
             .expect("Unable to detect input devices");
