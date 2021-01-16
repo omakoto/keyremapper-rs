@@ -486,7 +486,7 @@ impl EventsDescriptor {
         return ret;
     }
 
-    pub fn new_key_events() -> EventsDescriptor {
+    pub fn with_all_key_events() -> EventsDescriptor {
         let mut ret = EventsDescriptor::new();
 
         let mut all_keys = vec![];

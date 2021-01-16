@@ -61,4 +61,5 @@ fn main() {
     println!("cargo:rerun-if-changed=src/res/icons.gresource");
     compile_resources("src/res/icons.gresource");
     compile_resources("examples/shortcut-remote-remapper/icons.gresource");
+    compile_resources("examples/trackpoint-speedup/icons.gresource");
 }

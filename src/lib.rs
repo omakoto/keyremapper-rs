@@ -285,7 +285,7 @@ impl KeyRemapperConfiguration {
             }
         }
         if self.uinput_events.is_empty() {
-            self.uinput_events = EventsDescriptor::new_key_events();
+            self.uinput_events = EventsDescriptor::with_all_key_events();
         }
         self
     }
