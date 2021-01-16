@@ -1,8 +1,10 @@
-# KeyRemapper in Rust
+# keyremapper-rs
+
+A Rust library to help enable AHK like flexible key remapping.
 
 ## Prerequisite
 
-### Gain access to `/devn/input/*` and `/dev/uinput`
+### 1. Gain access to `/devn/input/*` and `/dev/uinput`
 
 ```sh
 # Add self to the input and uinput groups
@@ -14,6 +16,7 @@ sudo usermod -aG uinput $USER
 echo 'KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="uinput"' | sudo tee /etc/udev/rules.d/90-uinput.rules
 
 # This seems to be needed because uinput isn't compiled as a loadable module these days.
+# See https://github.com/chrippa/ds4drv/issues/93#issuecomment-265300511
 echo uinput | sudo tee /etc/modules-load.d/uinput.conf
 ```
 
@@ -23,7 +26,7 @@ See also:
 - https://stackoverflow.com/questions/11939255/writing-to-dev-uinput-on-ubuntu-12-04.
 - https://github.com/chrippa/ds4drv/issues/93#issuecomment-265300511
 
-### Install dependeencies
+### 2. Install dependeencies
 
 - `sudo apt install -y libappindicator3-dev libgtk-3-dev libevdev-dev libudev-dev libwnck-3-dev`
 
