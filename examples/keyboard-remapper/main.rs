@@ -118,10 +118,6 @@ lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
 }
 
-// extern "C" {
-//     fn XInitThreads() -> c_int;
-// }
-
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -145,12 +141,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut state = lock.borrow_mut();
 
         state.wheeler = Some(Wheeler::new(km.create_mouse_uinput("-wheel")));
-
-        log::debug!("Calling XInitThreads()...");
-        unsafe {
-            // XInitThreads();
-        }
-        log::debug!("Done calling XInitThreads()...");
     });
 
     config.on_event(|km, device, ev| {
@@ -167,13 +157,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         let is_caps_pressed = km.is_capslock_pressed();
 
         let is_chrome = || {
-            let wi = km.get_active_window();
-            return wi.class_group_name == "Google-chrome";
+            if let Ok(wi) = km.get_active_window() {
+                log::debug!("Active window={:?}", wi);
+                return wi.class_group_name == "google-chrome";
+            } else {
+                log::warn!("Unable to get active window.");
+                return false;
+            }
         };
-        // fn is_chrome() -> bool {
-        //     let wi = km.get_active_window();
-        //     return wi.class_group_name == "Google-chrome";
-        // };
 
         // For x-keys. Convert to Shift+Ctrl+[number]
         if is_xkeys {

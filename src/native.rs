@@ -8,6 +8,11 @@ use std::ffi::{c_void, CStr, CString};
 use libc::{c_char, c_int};
 include!(concat!(env!("OUT_DIR"), "/native-bindings.rs"));
 
+extern "C" {
+    pub(crate) fn XInitThreads() -> c_int;
+}
+
+
 pub(crate) fn string_from_c_str(s: *const ::std::os::raw::c_char) -> String {
     if s.is_null() {
         panic!("Recived null pointer");

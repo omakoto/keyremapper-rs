@@ -347,8 +347,8 @@ impl KeyRemapper {
             .show_notiication_with_timeout(message, timeout);
     }
 
-    pub fn get_active_window(&self) -> ui::WindowInfo {
-        ui::WindowInfo::from_active_window()
+    pub fn get_active_window(&self) -> std::result::Result<ui::WindowInfo, Box<dyn Error>> {
+        return ui::WindowInfo::from_active_window();
     }
 
     fn ensure_uinput(&self) {
@@ -615,6 +615,9 @@ fn select(fds: &Vec<RawFd>) -> Result<RawFd> {
 
 /// Main loop, which runs on the I/O thread.
 fn main_loop(key_remapper: &KeyRemapper) {
+
+    ui::x_init_threads();
+
     let config = &key_remapper.config;
     let callbacks = config.callbacks_cloned();
 
