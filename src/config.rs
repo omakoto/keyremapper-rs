@@ -211,13 +211,14 @@ impl KeyRemapperConfiguration {
     }
 
     pub(crate) fn set_defaults(&mut self) -> &mut KeyRemapperConfiguration {
+        let name_cleansed = Regex::new(r#"\s+"#).unwrap().replace(&self.name, "_").to_string();
         if self.global_lock_name.is_empty() {
-            self.global_lock_name = self.name.clone();
+            self.global_lock_name = name_cleansed.clone();
         }
         if self.uinput_device_name_suffix.is_empty() {
             self.uinput_device_name_suffix = {
                 let mut suffix = "-".to_string();
-                suffix.push_str(&self.name);
+                suffix.push_str(&name_cleansed);
                 suffix
             }
         }

@@ -1,7 +1,7 @@
 //! Reampper for the main keyboard
 extern crate lazy_static;
 
-use std::{cell::RefCell, error::Error, sync::Arc};
+use std::{cell::RefCell, error::Error, sync::Arc, time::Duration};
 
 use ec::EventType;
 use evdev::uinput::SyncedUinput;
@@ -80,8 +80,12 @@ static MODIFIER_KEYS: &[i32] = &[
     ec::KEY_ESC, // In this remapper, ESC is used as a modifier.
 ];
 
+const WHEEL_REPEAT_DELAY_NORMAL: Duration = Duration::from_millis(20);
+const WHEEL_REPEAT_DELAY_FAST: Duration = Duration::from_millis(5);
+const WHEEL_MAKE_FAST_AFTER_THIS_MANY_EVENTS: u32 = 10;
+
 mod wheeler {
-    use std::{cell::RefCell, sync::Arc};
+    use std::{cell::RefCell, sync::Arc, thread};
 
     use keyremapper::evdev::uinput::SyncedUinput;
     use parking_lot::ReentrantMutex;
@@ -93,7 +97,7 @@ mod wheeler {
         hwheel_speed: i32,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub struct Wheeler {
         inner: Arc<ReentrantMutex<RefCell<Inner>>>,
     }
@@ -124,8 +128,6 @@ mod wheeler {
                 inner.vwheel_speed = 0;
                 inner.hwheel_speed = 0;
             });
-            // let inner = self.inner.lock();
-            // let mut inner_mut = inner.borrow_mut();
         }
 
         pub fn set_vwheel(&mut self, value: i32) {
@@ -138,6 +140,18 @@ mod wheeler {
             self.with_lock(|inner| {
                 inner.hwheel_speed = value;
             });
+        }
+
+        pub fn start(&self) {
+            let clone = self.clone();
+
+            thread::Builder::new()
+                .name(format!("{}-wheeler", super::NAME))
+                .spawn(move || {
+                    log::info!("Wheeler thread started...");
+                    log::debug!("{:?}", clone);
+                })
+                .expect("Unable to wheeler thread");
         }
     }
 }
@@ -152,6 +166,7 @@ impl State {}
 
 lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
+    // static ref STATE: State = State::default();
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -176,7 +191,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let lock = STATE.lock();
         let mut state = lock.borrow_mut();
 
-        let mut wheeler = wheeler::Wheeler::new(km.create_mouse_uinput("-wheel"));
+        let wheeler = wheeler::Wheeler::new(km.create_mouse_uinput("-wheel"));
+        wheeler.start();
         state.wheeler = Some(wheeler);
     });
 
