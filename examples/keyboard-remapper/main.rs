@@ -69,6 +69,19 @@ static ALPHABET_KEYS: &[i32] = &[
     ec::KEY_Z,
 ];
 
+static MODIFIER_KEYS: &[i32] = &[
+    ec::KEY_LEFTALT,
+    ec::KEY_RIGHTALT,
+    ec::KEY_LEFTCTRL,
+    ec::KEY_RIGHTCTRL,
+    ec::KEY_LEFTSHIFT,
+    ec::KEY_RIGHTSHIFT,
+    ec::KEY_LEFTMETA,
+    ec::KEY_RIGHTMETA,
+    ec::KEY_CAPSLOCK, // In this remapper, CAPS is used as a modifier.
+    ec::KEY_ESC,      // In this remapper, ESC is used as a modifier.
+];
+
 #[derive(Debug, Default)]
 struct Wheeler {
     uinput: Option<SyncedUinput>,
@@ -142,6 +155,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let is_caps_pressed = km.is_capslock_pressed();
 
+        let is_chrome = || {
+            let wi = km.get_active_window();
+            return wi.class_group_name == "Google-chrome";
+        };
+        // fn is_chrome() -> bool {
+        //     let wi = km.get_active_window();
+        //     return wi.class_group_name == "Google-chrome";
+        // };
+
         // For x-keys. Convert to Shift+Ctrl+[number]
         if is_xkeys {
             // Special casing the first two keys.
@@ -154,10 +176,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             return;
         }
 
-        let mut ev = ev.clone();
+        let mut ev = &mut ev.clone();
 
+        // Special for the thinkpad keyboard. Use INS/DEL as PAGEUP/DOWN, unless caps is pressed.
         if is_thinkpad && !is_caps_pressed {
-            // Special for the thinkpad keyboard. Use INS/DEL as PAGEUP/DOWN, unless caps is pressed.
             match ev.code {
                 ec::KEY_INSERT => {
                     ev.code = ec::KEY_PAGEUP;
@@ -169,7 +191,46 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        km.send_event(&ev);
+        // Special ESC handling: Don't send "ESC-press" at key-down, but instead send it on key-*up*, unless
+        // any keys are pressed between the down and up.
+        // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
+        if ev.code == ec::KEY_ESC {
+            if ev.value == 1 {
+                state.pending_esc_pressed = true;
+            }
+            if ev.value == 0 && state.pending_esc_pressed {
+                state.pending_esc_pressed = false;
+                km.press_key(ec::KEY_ESC, "");
+            }
+            return;
+        }
+        // If other keys are pressed, clear pending_esc_pressed, but don't do so for modifier key presses
+        // in order to allow combos like "ESC+ctrl+Backspace".
+        if !MODIFIER_KEYS.contains(&ev.code) {
+            state.pending_esc_pressed = false;
+        }
+
+        match ev {
+            // ESC or shift + backspace -> delete
+            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "e") => {
+                km.press_key(ec::KEY_DELETE, "")
+            }
+            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => {
+                km.press_key(ec::KEY_DELETE, "")
+            }
+
+            // For chrome
+            //  F5 -> back
+            //  F6 -> forward
+            _ if km.key_pressed(ev, &[ec::KEY_F5], &[1, 2], "") && is_chrome() => {
+                km.press_key(ec::KEY_BACK, "")
+            }
+            _ if km.key_pressed(ev, &[ec::KEY_F6], &[1, 2], "") && is_chrome() => {
+                km.press_key(ec::KEY_FORWARD, "")
+            }
+
+            _ => km.send_event(&ev),
+        };
     });
 
     keyremapper::start(config);
