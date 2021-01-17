@@ -77,42 +77,75 @@ static MODIFIER_KEYS: &[i32] = &[
     ec::KEY_RIGHTSHIFT,
     ec::KEY_LEFTMETA,
     ec::KEY_RIGHTMETA,
-    ec::KEY_ESC,      // In this remapper, ESC is used as a modifier.
+    ec::KEY_ESC, // In this remapper, ESC is used as a modifier.
 ];
 
-#[derive(Debug, Default)]
-struct Wheeler {
-    uinput: Option<SyncedUinput>,
-    vwheel_speed: i32,
-    hwheel_speed: i32,
-}
+mod wheeler {
+    use std::{cell::RefCell, sync::Arc};
 
-impl Wheeler {
-    fn new(uinput: SyncedUinput) -> Wheeler {
-        let mut ret = Wheeler::default();
-        ret.uinput = Some(uinput);
+    use keyremapper::evdev::uinput::SyncedUinput;
+    use parking_lot::ReentrantMutex;
 
-        return ret;
+    #[derive(Debug)]
+    struct Inner {
+        uinput: SyncedUinput,
+        vwheel_speed: i32,
+        hwheel_speed: i32,
     }
 
-    fn start(&mut self) {}
-
-    fn reset(&mut self) {
-        self.vwheel_speed = 0;
-        self.hwheel_speed = 0;
+    #[derive(Debug)]
+    pub struct Wheeler {
+        inner: Arc<ReentrantMutex<RefCell<Inner>>>,
     }
 
-    fn set_vwheel(&mut self, value: i32) {
-    }
+    impl Wheeler {
+        pub fn new(uinput: SyncedUinput) -> Wheeler {
+            let inner = Inner {
+                uinput,
+                vwheel_speed: 0,
+                hwheel_speed: 0,
+            };
 
-    fn set_hwheel(&mut self, value: i32) {
+            return Wheeler {
+                inner: Arc::new(ReentrantMutex::new(RefCell::new(inner))),
+            };
+        }
+
+        fn with_lock<F>(&self, callback: F)
+        where
+            F: Fn(&mut Inner),
+        {
+            let inner = self.inner.lock();
+            callback(&mut inner.borrow_mut());
+        }
+
+        pub fn reset(&self) {
+            self.with_lock(|inner| {
+                inner.vwheel_speed = 0;
+                inner.hwheel_speed = 0;
+            });
+            // let inner = self.inner.lock();
+            // let mut inner_mut = inner.borrow_mut();
+        }
+
+        pub fn set_vwheel(&mut self, value: i32) {
+            self.with_lock(|inner| {
+                inner.vwheel_speed = value;
+            });
+        }
+
+        pub fn set_hwheel(&mut self, value: i32) {
+            self.with_lock(|inner| {
+                inner.hwheel_speed = value;
+            });
+        }
     }
 }
 
 #[derive(Debug, Default)]
 struct State {
     pending_esc_pressed: bool,
-    wheeler: Option<Wheeler>,
+    wheeler: Option<wheeler::Wheeler>,
 }
 
 impl State {}
@@ -143,7 +176,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let lock = STATE.lock();
         let mut state = lock.borrow_mut();
 
-        state.wheeler = Some(Wheeler::new(km.create_mouse_uinput("-wheel")));
+        let mut wheeler = wheeler::Wheeler::new(km.create_mouse_uinput("-wheel"));
+        state.wheeler = Some(wheeler);
     });
 
     config.on_devices_lost(|_km| {
@@ -182,7 +216,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         if is_thinkpad && !km.is_key_pressed(ec::KEY_CAPSLOCK) {
             match ev.code {
                 ec::KEY_INSERT => ev.code = ec::KEY_PAGEUP,
-                ec::KEY_DELETE => ev.code = ec::KEY_PAGEDOWN, 
+                ec::KEY_DELETE => ev.code = ec::KEY_PAGEDOWN,
                 _ => {}
             }
         }
@@ -212,22 +246,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "e") => km.press_key(ec::KEY_DELETE, ""),
             _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => km.press_key(ec::KEY_DELETE, ""),
 
-
             // See VERSATILE_KEYS.
             _ if km.key_pressed(ev, VERSATILE_KEYS, &[1, 2], "e") => km.press_key(ev.code, "acsw"),
-
 
             // ESC + home/end -> ATL+Left/Right (back / forward)
             _ if km.key_pressed(ev, &[ec::KEY_HOME], &[1, 2], "e") => km.press_key(ec::KEY_LEFT, "a"),
             _ if km.key_pressed(ev, &[ec::KEY_END], &[1, 2], "e") => km.press_key(ec::KEY_RIGHT, "a"),
-
 
             // ESC + Pageup -> ctrl + pageup (prev tab)
             // ESC + Pagedown -> ctrl + pagedown (next tab)
             // (meaning ESC + ins/del act as them too on thinkpad.)
             _ if km.key_pressed(ev, &[ec::KEY_PAGEUP, ec::KEY_PAGEDOWN], &[1, 2], "e") => km.press_key(ev.code, "c"),
 
-            
             // ESC + caps lock -> caps lock, in case I ever need it.
             _ if km.key_pressed(ev, &[ec::KEY_CAPSLOCK], &[1, 2], "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
 
@@ -235,28 +265,24 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if km.key_pressed(ev, &[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], &[0, 1, 2], "e*") => {
                 if ev.value != 1 {
                     state.wheeler.as_mut().unwrap().set_vwheel(0);
-                
                 } else if [ec::KEY_K, ec::KEY_C].contains(&ev.code) {
                     state.wheeler.as_mut().unwrap().set_vwheel(1);
-                
                 } else if [ec::KEY_J, ec::KEY_SPACE].contains(&ev.code) {
                     state.wheeler.as_mut().unwrap().set_vwheel(1);
                 }
 
                 return;
-            },
+            }
             _ if km.key_pressed(ev, &[ec::KEY_L, ec::KEY_H], &[0, 1, 2], "e*") => {
                 if ev.value != 1 {
                     state.wheeler.as_mut().unwrap().set_hwheel(0);
-                
                 } else if [ec::KEY_L].contains(&ev.code) {
                     state.wheeler.as_mut().unwrap().set_hwheel(1);
-                
                 } else if [ec::KEY_H].contains(&ev.code) {
                     state.wheeler.as_mut().unwrap().set_hwheel(-1);
                 }
                 return;
-            },
+            }
 
             // ESC + other alphabet -> ctrl + shift + the key.
             _ if km.key_pressed(ev, ALPHABET_KEYS, &[1, 2], "e") => km.press_key(ev.code, "cs"),
