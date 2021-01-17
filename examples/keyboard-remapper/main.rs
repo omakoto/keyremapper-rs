@@ -11,6 +11,7 @@ use keyremapper::{
     KeyRemapper, KeyRemapperConfiguration,
 };
 
+use libc::c_int;
 use parking_lot::Mutex;
 
 const NAME: &str = "Keyboard remapper";
