@@ -26,7 +26,7 @@ pub(crate) struct KeyRemapperCallbacks {
 
     pub(crate) on_stop: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
 
-    pub(crate) on_events: Arc<
+    pub(crate) on_events_batch: Arc<
         dyn Fn(&KeyRemapper, &evdev::EvdevDevice, &[evdev::InputEvent]) + Send + Sync + 'static,
     >,
     pub(crate) on_event:
@@ -49,7 +49,7 @@ impl KeyRemapperCallbacks {
             on_devices_not_found: Arc::new(|_| {}),
             on_devices_lost: Arc::new(|_| {}),
             on_stop: Arc::new(|_| {}),
-            on_events: Arc::new(|_, _, _| {}),
+            on_events_batch: Arc::new(|_, _, _| {}),
             on_event: Arc::new(|_, _, _| {}),
         }
     }
@@ -213,7 +213,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_events<
+    pub fn on_events_batch<
         F: Fn(&KeyRemapper, &evdev::EvdevDevice, &[evdev::InputEvent]) + Send + Sync + 'static,
     >(
         &mut self,
@@ -221,7 +221,7 @@ impl KeyRemapperConfiguration {
     ) -> &mut KeyRemapperConfiguration {
         {
             let mut callbacks = self.callbacks.write();
-            callbacks.on_events = Arc::new(callback);
+            callbacks.on_events_batch = Arc::new(callback);
         }
         self
     }

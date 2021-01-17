@@ -223,10 +223,13 @@ impl SyncedUinput {
         })
     }
 
-    /// Send a single event. Doesn't automatically send a syn event.
+    /// Send a single event with a SYN_REPORT.
     pub fn send_event(&self, ev: &crate::evdev::InputEvent) -> Result<(), EvdevError> {
         let _ = self.lock();
-        return self.uinput.write().send_event(ev);
+        let mut w = self.uinput.write();
+        w.send_event(ev)?;
+        w.send_syn_report()?;
+        return Ok(());
     }
 
     pub fn send_syn_report(&self) -> Result<(), EvdevError> {

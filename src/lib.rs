@@ -111,7 +111,6 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
 pub struct KeyRemapperInput {
     config: KeyRemapperConfiguration,
     devices: Vec<evdev::EvdevDevice>,
-    input_event_tracker: Arc<ReentrantMutex<RefCell<InputEventTracker>>>,
 }
 
 impl KeyRemapperInput {
@@ -122,9 +121,6 @@ impl KeyRemapperInput {
         return Ok(KeyRemapperInput {
             config: config,
             devices: vec![],
-            input_event_tracker: Arc::new(ReentrantMutex::new(RefCell::new(
-                InputEventTracker::new(),
-            ))),
         });
     }
 
@@ -239,6 +235,7 @@ pub struct KeyRemapper {
     config: KeyRemapperConfiguration,
     uinput: Option<SyncedUinput>,
     input: Arc<ReentrantMutex<RefCell<KeyRemapperInput>>>,
+    input_event_tracker: Arc<ReentrantMutex<RefCell<InputEventTracker>>>,
     ui: Arc<ReentrantMutex<RefCell<KeyRemapperUi>>>,
 
     all_uinputs: Arc<ReentrantMutex<RefCell<Vec<SyncedUinput>>>>,
@@ -283,6 +280,9 @@ impl KeyRemapper {
             input: Arc::new(ReentrantMutex::new(RefCell::new(input))),
             ui: Arc::new(ReentrantMutex::new(RefCell::new(ui))),
             all_uinputs: Arc::new(ReentrantMutex::new(RefCell::new(vec![]))),
+            input_event_tracker: Arc::new(ReentrantMutex::new(RefCell::new(
+                InputEventTracker::new(),
+            ))),
         };
         if let Some(u) = ret.uinput.as_ref() {
             ret.add_uinput(&u);
@@ -396,9 +396,7 @@ impl KeyRemapper {
     }
 
     pub fn get_in_key_state(&self, code: i32) -> i32 {
-        let input_lock = self.input.lock();
-        let input_lock_mut = input_lock.borrow_mut();
-        let tracker = input_lock_mut.input_event_tracker.lock();
+        let tracker = self.input_event_tracker.lock();
         return tracker.borrow().key_state(code);
     }
 
@@ -703,8 +701,12 @@ fn main_loop(key_remapper: &KeyRemapper) {
                 log::debug!("Input event: {}", ev);
             }
 
-            (*callbacks.on_events)(&key_remapper, &device, &events);
+            (*callbacks.on_events_batch)(&key_remapper, &device, &events);
             for ev in &events {
+                {
+                    let tracker = key_remapper.input_event_tracker.lock();
+                    tracker.borrow_mut().on_event_sent(ev);
+                }
                 (*callbacks.on_event)(&key_remapper, &device, ev);
             }
         }
