@@ -615,8 +615,6 @@ fn select(fds: &Vec<RawFd>) -> Result<RawFd> {
 
 /// Main loop, which runs on the I/O thread.
 fn main_loop(key_remapper: &KeyRemapper) {
-    gtk::init().unwrap();
-
     let config = &key_remapper.config;
     let callbacks = config.callbacks_cloned();
 
