@@ -35,7 +35,6 @@ fn main() {
     println!("cargo:rustc-link-lib=evdev");
     println!("cargo:rustc-link-lib=udev");
     println!("cargo:rustc-link-lib=wnck-3");
-    println!("cargo:rustc-link-lib=X11");
 
     //
     let status = Command::new("scripts/gen_binding.py")
