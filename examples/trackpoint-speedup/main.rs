@@ -37,13 +37,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let mut supported_events = EventsDescriptor::default();
-    supported_events.events.insert(
-        ec::EventType::EV_KEY,
-        vec![ec::BTN_LEFT, ec::BTN_RIGHT, ec::BTN_MIDDLE],
-    );
     supported_events
         .events
-        .insert(ec::EventType::EV_REL, vec![ec::REL_X, ec::REL_Y]);
+        .insert(ec::EventType::EV_KEY, vec![ec::BTN_LEFT, ec::BTN_RIGHT, ec::BTN_MIDDLE]);
+    supported_events.events.insert(ec::EventType::EV_REL, vec![ec::REL_X, ec::REL_Y]);
 
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
@@ -57,30 +54,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     config.on_init_args(|app| {
         let ret = app
-            .arg(
-                Arg::with_name("threshold")
-                    .long("threshold")
-                    .default_value(&"2")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("add")
-                    .long("add")
-                    .default_value(&"0")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("power")
-                    .long("power")
-                    .default_value(&"2.5")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("scale")
-                    .long("scale")
-                    .default_value(&"5")
-                    .takes_value(true),
-            );
+            .arg(Arg::with_name("threshold").long("threshold").default_value(&"2").takes_value(true))
+            .arg(Arg::with_name("add").long("add").default_value(&"0").takes_value(true))
+            .arg(Arg::with_name("power").long("power").default_value(&"2.5").takes_value(true))
+            .arg(Arg::with_name("scale").long("scale").default_value(&"5").takes_value(true));
         return ret;
     });
     config.on_args_parsed(|matches| {

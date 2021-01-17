@@ -167,11 +167,9 @@ impl KeyRemapperUi {
         // Set the icon.
         let icon = match &config.icon {
             Some(path) => path.clone(),
-            None => {
-                res::get_gio_resource_as_file("keyremapper-rs", res::DEFAULT_ICON_NAME, &|| {
-                    return res::load_gio_resources();
-                })
-            }
+            None => res::get_gio_resource_as_file("keyremapper-rs", res::DEFAULT_ICON_NAME, &|| {
+                return res::load_gio_resources();
+            }),
         };
 
         indicator.set_icon(&(icon.into_os_string().into_string().unwrap()));
@@ -194,11 +192,7 @@ impl KeyRemapperUi {
         m.show_all();
 
         let mut notification = Notification::new();
-        let notification = notification
-            .summary(&config.name)
-            .body(&format!("{} started", config.name))
-            .show()
-            .unwrap();
+        let notification = notification.summary(&config.name).body(&format!("{} started", config.name)).show().unwrap();
 
         return Ok(KeyRemapperUi {
             app_indicator: indicator,
@@ -208,19 +202,13 @@ impl KeyRemapperUi {
 
     fn show_notiication_with_timeout(&mut self, message: &str, timeout: Duration) {
         let notification = &mut self.notification;
-        notification
-            .body(message)
-            .timeout(Timeout::Milliseconds(timeout.as_millis() as u32));
+        notification.body(message).timeout(Timeout::Milliseconds(timeout.as_millis() as u32));
         notification.update();
     }
 }
 
 /// Create a new uinput device using the given `KeyRemapperConfiguration` with a suffix.
-fn create_uinput(
-    config: &KeyRemapperConfiguration,
-    name_suffix: &str,
-    supported_events: &EventsDescriptor,
-) -> Result<SyncedUinput> {
+fn create_uinput(config: &KeyRemapperConfiguration, name_suffix: &str, supported_events: &EventsDescriptor) -> Result<SyncedUinput> {
     let mut name = UINPUT_DEVICE_NAME_PREFIX.to_string();
     name.push_str(&config.uinput_device_name_suffix);
     name.push_str(name_suffix);
@@ -262,16 +250,12 @@ impl KeyRemapper {
         // Set up uinput
         // let uinput = if config.builder.
         let uinput = if config.write_to_uinput {
-            Some(
-                create_uinput(&config, "", &config.uinput_events)
-                    .expect("failed to create uinput device"),
-            )
+            Some(create_uinput(&config, "", &config.uinput_events).expect("failed to create uinput device"))
         } else {
             None
         };
 
-        let input =
-            KeyRemapperInput::new(config.clone()).expect("failed to initialize input devices");
+        let input = KeyRemapperInput::new(config.clone()).expect("failed to initialize input devices");
 
         let ret = KeyRemapper {
             config: config,
@@ -279,9 +263,7 @@ impl KeyRemapper {
             input: Arc::new(ReentrantMutex::new(RefCell::new(input))),
             ui: Arc::new(ReentrantMutex::new(RefCell::new(ui))),
             all_uinputs: Arc::new(ReentrantMutex::new(RefCell::new(vec![]))),
-            input_event_tracker: Arc::new(ReentrantMutex::new(RefCell::new(
-                InputEventTracker::new(),
-            ))),
+            input_event_tracker: Arc::new(ReentrantMutex::new(RefCell::new(InputEventTracker::new()))),
         };
         if let Some(u) = ret.uinput.as_ref() {
             ret.add_uinput(&u);
@@ -290,13 +272,8 @@ impl KeyRemapper {
     }
 
     /// Create a new uinput device supporting given events using the with a suffix.
-    pub fn create_uinput(
-        &self,
-        name_suffix: &str,
-        supported_events: &EventsDescriptor,
-    ) -> SyncedUinput {
-        let u = create_uinput(&self.config, name_suffix, supported_events)
-            .expect("failed to create uinput device");
+    pub fn create_uinput(&self, name_suffix: &str, supported_events: &EventsDescriptor) -> SyncedUinput {
+        let u = create_uinput(&self.config, name_suffix, supported_events).expect("failed to create uinput device");
         self.add_uinput(&u);
         return u;
     }
@@ -318,14 +295,7 @@ impl KeyRemapper {
         );
         supported_events.events.insert(
             ec::EventType::EV_REL,
-            vec![
-                ec::REL_X,
-                ec::REL_Y,
-                ec::REL_WHEEL,
-                ec::REL_HWHEEL,
-                ec::REL_WHEEL_HI_RES,
-                ec::REL_HWHEEL_HI_RES,
-            ],
+            vec![ec::REL_X, ec::REL_Y, ec::REL_WHEEL, ec::REL_HWHEEL, ec::REL_WHEEL_HI_RES, ec::REL_HWHEEL_HI_RES],
         );
 
         return self.create_uinput(name_suffix, &supported_events);
@@ -342,8 +312,7 @@ impl KeyRemapper {
 
     pub fn show_notiication_with_timeout(&self, message: &str, timeout: Duration) {
         let ui = self.ui.lock();
-        ui.borrow_mut()
-            .show_notiication_with_timeout(message, timeout);
+        ui.borrow_mut().show_notiication_with_timeout(message, timeout);
     }
 
     fn ensure_uinput(&self) {
@@ -354,11 +323,7 @@ impl KeyRemapper {
 
     pub fn send_syn_report(&self) {
         self.ensure_uinput();
-        self.uinput
-            .as_ref()
-            .unwrap()
-            .send_event(&evdev::InputEvent::new_syn_report())
-            .unwrap();
+        self.uinput.as_ref().unwrap().send_event(&evdev::InputEvent::new_syn_report()).unwrap();
     }
 
     pub fn send_event(&self, event: &evdev::InputEvent) {
@@ -535,25 +500,13 @@ impl KeyRemapper {
                 }
             }
             if !ok {
-                panic!(
-                    r#"Modifier "{}" contains an invalid character "{}""#,
-                    in_modifiers, m
-                );
+                panic!(r#"Modifier "{}" contains an invalid character "{}""#, in_modifiers, m);
             }
         }
     }
 
-    pub fn key_pressed(
-        &self,
-        event: &evdev::InputEvent,
-        keys: &[i32],
-        values: &[i32],
-        modifiers: &str,
-    ) -> bool {
-        (event.event_type == ec::EventType::EV_KEY)
-            && keys.contains(&event.code)
-            && values.contains(&event.value)
-            && self.are_modifiers_pressed(modifiers)
+    pub fn key_pressed(&self, event: &evdev::InputEvent, keys: &[i32], values: &[i32], modifiers: &str) -> bool {
+        (event.event_type == ec::EventType::EV_KEY) && keys.contains(&event.code) && values.contains(&event.value) && self.are_modifiers_pressed(modifiers)
     }
 
     // TODO Support changing the tray icon.
@@ -624,9 +577,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
         // First, find the target input devices.
         let input_lock = key_remapper.input.lock();
         let mut input = input_lock.borrow_mut();
-        input
-            .refresh_devices()
-            .expect("Unable to detect input devices");
+        input.refresh_devices().expect("Unable to detect input devices");
 
         if input.devices.len() == 0 {
             log::info!("No device found");
@@ -719,9 +670,7 @@ pub fn handle_args(config: &mut KeyRemapperConfiguration) {
                 .long("match-device-name")
                 .value_name("DEVICE")
                 .default_value(&device_name_regex)
-                .help(
-                    r#"Select by device name using this regex. Use evtest(1) to list device names"#,
-                )
+                .help(r#"Select by device name using this regex. Use evtest(1) to list device names"#)
                 .takes_value(true),
         )
         .arg(

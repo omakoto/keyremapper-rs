@@ -40,14 +40,7 @@ impl RawUinput {
 
     fn send_event(&mut self, ev: &crate::evdev::InputEvent) -> Result<(), EvdevError> {
         log::debug!("Writing event: {}", ev);
-        let ret = unsafe {
-            native::libevdev_uinput_write_event(
-                self.uinput.ptr,
-                ev.event_type as u32,
-                ev.code as u32,
-                ev.value,
-            )
-        };
+        let ret = unsafe { native::libevdev_uinput_write_event(self.uinput.ptr, ev.event_type as u32, ev.code as u32, ev.value) };
         if ret < 0 {
             return Err(EvdevError::ErrnoError(-ret));
         }
@@ -79,15 +72,10 @@ pub struct Uinput {
 impl Uinput {
     pub fn new(name: &str, events: &EventsDescriptor) -> Result<Uinput, EvdevError> {
         if name.len() == 0 {
-            return Err(EvdevError::UinputCreationError(
-                "Name must not be empty".to_string(),
-            ));
+            return Err(EvdevError::UinputCreationError("Name must not be empty".to_string()));
         }
         unsafe {
-            let file = fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open("/dev/uinput")?;
+            let file = fs::OpenOptions::new().read(true).write(true).open("/dev/uinput")?;
             let fd = file.as_raw_fd();
 
             let dev = native::libevdev_new();
@@ -102,22 +90,13 @@ impl Uinput {
                 log::debug!("Enabling event type {:?}...", event_type);
                 let ret = native::libevdev_enable_event_type(dev, (*event_type) as u32);
                 if ret != 0 {
-                    return Err(EvdevError::UinputCreationError(
-                        "libevdev_enable_event_type failed".to_string(),
-                    ));
+                    return Err(EvdevError::UinputCreationError("libevdev_enable_event_type failed".to_string()));
                 }
                 for code in codes {
                     // log::debug!("  {}...", code);
-                    let ret = native::libevdev_enable_event_code(
-                        dev,
-                        (*event_type) as u32,
-                        (*code) as u32,
-                        std::ptr::null(),
-                    );
+                    let ret = native::libevdev_enable_event_code(dev, (*event_type) as u32, (*code) as u32, std::ptr::null());
                     if ret != 0 {
-                        return Err(EvdevError::UinputCreationError(
-                            "libevdev_enable_event_code failed".to_string(),
-                        ));
+                        return Err(EvdevError::UinputCreationError("libevdev_enable_event_code failed".to_string()));
                     }
                 }
             }
@@ -126,23 +105,14 @@ impl Uinput {
                 log::debug!("Enabling event type {:?}...", event_type);
                 let ret = native::libevdev_enable_event_type(dev, event_type as u32);
                 if ret != 0 {
-                    return Err(EvdevError::UinputCreationError(
-                        "libevdev_enable_event_type failed".to_string(),
-                    ));
+                    return Err(EvdevError::UinputCreationError("libevdev_enable_event_type failed".to_string()));
                 }
                 for (code, absinfo) in &events.abs_info {
                     // log::debug!("  {}...", code);
                     let raw_absinfo = absinfo.to_raw_absinfo();
-                    let ret = native::libevdev_enable_event_code(
-                        dev,
-                        event_type as u32,
-                        (*code) as u32,
-                        (&raw_absinfo) as *const _ as *const c_void,
-                    );
+                    let ret = native::libevdev_enable_event_code(dev, event_type as u32, (*code) as u32, (&raw_absinfo) as *const _ as *const c_void);
                     if ret != 0 {
-                        return Err(EvdevError::UinputCreationError(
-                            "libevdev_enable_event_code failed".to_string(),
-                        ));
+                        return Err(EvdevError::UinputCreationError("libevdev_enable_event_code failed".to_string()));
                     }
                 }
             }

@@ -83,18 +83,10 @@ impl UdevMonitor {
             if udev == ptr::null_mut() {
                 return Err(UdevError::new_unknown_error("udev_new() failed"));
             }
-            let udev_monitor =
-                native::udev_monitor_new_from_netlink(udev, c_string_from_str("udev").as_ptr());
-            log::debug!(
-                "udev_monitor_new_from_netlink() returned {:?}",
-                udev_monitor
-            );
+            let udev_monitor = native::udev_monitor_new_from_netlink(udev, c_string_from_str("udev").as_ptr());
+            log::debug!("udev_monitor_new_from_netlink() returned {:?}", udev_monitor);
 
-            native::udev_monitor_filter_add_match_subsystem_devtype(
-                udev_monitor,
-                c_string_from_str(subsystem).as_ptr(),
-                ptr::null(),
-            );
+            native::udev_monitor_filter_add_match_subsystem_devtype(udev_monitor, c_string_from_str(subsystem).as_ptr(), ptr::null());
             native::udev_monitor_enable_receiving(udev_monitor);
 
             // Get the FD.
@@ -107,17 +99,11 @@ impl UdevMonitor {
             {
                 match libc::fcntl(fd, libc::F_GETFD) {
                     -1 => {
-                        return Err(UdevError::ErrnoError(
-                            "fcntl(F_GETFD) failed".to_string(),
-                            errno::errno().0,
-                        ));
+                        return Err(UdevError::ErrnoError("fcntl(F_GETFD) failed".to_string(), errno::errno().0));
                     }
                     flags => match libc::fcntl(fd, libc::F_SETFD, flags | libc::O_NONBLOCK) {
                         -1 => {
-                            return Err(UdevError::ErrnoError(
-                                "fcntl(F_SETFD, O_NONBLOCK) failed".to_string(),
-                                errno::errno().0,
-                            ));
+                            return Err(UdevError::ErrnoError("fcntl(F_SETFD, O_NONBLOCK) failed".to_string(), errno::errno().0));
                         }
                         _ => {}
                     },
@@ -161,9 +147,7 @@ impl UdevMonitor {
                     path,
                 });
             } else {
-                return Err(UdevError::new_unknown_error(
-                    "udev_monitor_receive_device() failed",
-                ));
+                return Err(UdevError::new_unknown_error("udev_monitor_receive_device() failed"));
             }
         }
     }

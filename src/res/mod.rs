@@ -34,16 +34,10 @@ fn copy_stream(ins: &gio::InputStream, outs: &mut File) -> Result<(), Box<dyn Er
     }
 }
 
-fn extract_resources(
-    file_path: &PathBuf,
-    res_path: &str,
-    resource_fetcher: &ResourcesFetcher,
-) -> () {
+fn extract_resources(file_path: &PathBuf, res_path: &str, resource_fetcher: &ResourcesFetcher) -> () {
     fs::create_dir_all(file_path.parent().unwrap()).expect("Unable to make directories");
     let res = resource_fetcher();
-    let ins = res
-        .open_stream(res_path, gio::ResourceLookupFlags::NONE)
-        .expect("Unable to load resources");
+    let ins = res.open_stream(res_path, gio::ResourceLookupFlags::NONE).expect("Unable to load resources");
     let mut outs = File::create(file_path).expect("Unable to create file");
 
     match copy_stream(&ins, &mut outs) {
@@ -56,11 +50,7 @@ fn extract_resources(
     };
 }
 
-pub fn get_gio_resource_as_file(
-    exe_unique_name: &str,
-    res_path: &str,
-    resource_fetcher: &ResourcesFetcher,
-) -> PathBuf {
+pub fn get_gio_resource_as_file(exe_unique_name: &str, res_path: &str, resource_fetcher: &ResourcesFetcher) -> PathBuf {
     let file_path = {
         let mut dir = std::env::temp_dir();
         dir.push(exe_unique_name);
@@ -69,10 +59,7 @@ pub fn get_gio_resource_as_file(
     };
 
     let oldest = SystemTime::UNIX_EPOCH;
-    let exe_mtime = fs::metadata(std::env::current_exe().unwrap())
-        .unwrap()
-        .modified()
-        .unwrap_or(oldest);
+    let exe_mtime = fs::metadata(std::env::current_exe().unwrap()).unwrap().modified().unwrap_or(oldest);
     let file_mtile = match fs::metadata(&file_path) {
         Ok(stat) => stat.modified().unwrap_or(oldest),
         Err(_) => oldest,

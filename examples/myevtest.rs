@@ -30,12 +30,7 @@ fn pick_device() -> Result<EvdevDevice, Box<dyn Error>> {
 fn main() {
     let device = pick_device().unwrap();
 
-    log::info!(
-        "Device selected: {} {} ({:?})",
-        device.path(),
-        device.name(),
-        device
-    );
+    log::info!("Device selected: {} {} ({:?})", device.path(), device.name(), device);
 
     loop {
         let events = device.next_events().unwrap();

@@ -97,13 +97,7 @@ impl Display for InputEvent {
 }
 
 impl InputEvent {
-    pub fn with_timestamp(
-        time_sec: i64,
-        time_usec: i64,
-        event_type: ec::EventType,
-        code: i32,
-        value: i32,
-    ) -> InputEvent {
+    pub fn with_timestamp(time_sec: i64, time_usec: i64, event_type: ec::EventType, code: i32, value: i32) -> InputEvent {
         return InputEvent {
             time_sec,
             time_usec,
@@ -144,9 +138,7 @@ impl InputEvent {
 
     /// Return true if it's a SYN_REPORT event.
     pub fn is_syn_report(&self) -> bool {
-        return self.event_type == ec::EventType::EV_SYN
-            && self.code == ec::SYN_REPORT
-            && self.value == 0;
+        return self.event_type == ec::EventType::EV_SYN && self.code == ec::SYN_REPORT && self.value == 0;
     }
 }
 
@@ -251,9 +243,7 @@ impl InputEventTracker {
 
     pub fn on_event_sent(&self, ev: &InputEvent) {
         let mut inner = self.inner.write().unwrap();
-        if ev.event_type == ec::EventType::EV_KEY
-            && InputEventTracker::should_send_no_lock(&inner, ev)
-        {
+        if ev.event_type == ec::EventType::EV_KEY && InputEventTracker::should_send_no_lock(&inner, ev) {
             inner.key_states.insert(ev.code, ev.value);
         }
         inner.syn_report_pending = !ev.is_syn_report();
@@ -293,50 +283,20 @@ fn test_input_event_tracker() {
     assert_eq!(0, et.key_state(0));
     assert_eq!(0, et.key_state(1));
 
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0))
-    );
-    assert_eq!(
-        false,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1))
-    );
-    assert_eq!(
-        false,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 2, 1))
-    );
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
+    assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1)));
+    assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 2, 1)));
 
     et.on_event_sent(&InputEvent::new(EventType::EV_KEY, 1, 1));
     et.on_event_sent(&InputEvent::new_syn_report());
 
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0))
-    );
-    assert_eq!(
-        false,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 2, 1))
-    );
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0)));
+    assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 2, 1)));
 
     {
         let et2 = et.clone();
@@ -345,40 +305,19 @@ fn test_input_event_tracker() {
         et2.on_event_sent(&InputEvent::new_syn_report());
     }
 
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0))
-    );
-    assert_eq!(
-        false,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2))
-    );
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_KEY, 2, 1))
-    );
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0)));
+    assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2)));
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 2, 1)));
 
     et.on_event_sent(&InputEvent::new(EventType::EV_KEY, 3, 1));
     et.on_event_sent(&InputEvent::new_syn_report());
 
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_REL, 5, 1))
-    );
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_REL, 5, 1)));
     et.on_event_sent(&InputEvent::new(EventType::EV_REL, 5, 1));
     et.on_event_sent(&InputEvent::new_syn_report());
-    assert_eq!(
-        true,
-        et.should_send(&InputEvent::new(EventType::EV_REL, 5, 1))
-    );
+    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_REL, 5, 1)));
 
     {
         let reset_events = et.reset();
@@ -463,8 +402,7 @@ impl EventsDescriptor {
             if native::libevdev_has_event_type(device, ec::EV_ABS as u32) != 1 {
                 return;
             }
-            let ai: *const native::input_absinfo =
-                native::libevdev_get_abs_info(device, code as u32);
+            let ai: *const native::input_absinfo = native::libevdev_get_abs_info(device, code as u32);
             if ai == std::ptr::null() {
                 return;
             }
@@ -636,10 +574,7 @@ impl EvdevDevice {
 
     fn next_single_event(&self, sync: bool) -> Result<InputEvent, EvdevError> {
         let mut ie = native::input_event {
-            time: native::timeval {
-                tv_sec: 0,
-                tv_usec: 0,
-            },
+            time: native::timeval { tv_sec: 0, tv_usec: 0 },
             type_: 0,
             code: 0,
             value: 0,
@@ -705,10 +640,7 @@ pub fn list_devices_from_path(device_path_glob: &str) -> Result<Vec<EvdevDevice>
     return list_devices_from_path_with_filter(device_path_glob, |_device| true);
 }
 
-pub fn list_devices_from_path_with_filter<F>(
-    device_path_glob: &str,
-    filter: F,
-) -> Result<Vec<EvdevDevice>, EvdevError>
+pub fn list_devices_from_path_with_filter<F>(device_path_glob: &str, filter: F) -> Result<Vec<EvdevDevice>, EvdevError>
 where
     F: Fn(&EvdevDevice) -> bool,
 {

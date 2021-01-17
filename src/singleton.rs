@@ -33,10 +33,7 @@ pub fn ensure_singleton(unique_name: &str) {
             }
         };
         if !success {
-            eprintln!(
-                "Unable to lock lockfile {}. Another process running?",
-                path.as_os_str().to_str().unwrap()
-            );
+            eprintln!("Unable to lock lockfile {}. Another process running?", path.as_os_str().to_str().unwrap());
             std::process::exit(1);
         }
         libc::umask(old_mask);

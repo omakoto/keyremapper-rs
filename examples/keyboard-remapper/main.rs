@@ -18,8 +18,7 @@ const NAME: &str = "Keyboard remapper";
 // AT Translated Set 2 keyboard -> thinkpad internal keyboard
 // Topre Corporation Realforce  -> Realforce
 // P. I. Engineering XK-16 HID  -> An external 8-key keyboard
-const DEVICE_RE: &str =
-    r#"^(AT Translated Set 2 keyboard|Topre Corporation Realforce|P. I. Engineering XK-16 HID)"#;
+const DEVICE_RE: &str = r#"^(AT Translated Set 2 keyboard|Topre Corporation Realforce|P. I. Engineering XK-16 HID)"#;
 const ID_RE: &str = "^";
 
 // ESC + These keys will generate SHIFT+ALT+CTRL+META+[THE KEY]. I launch apps using them -- e.g. ESC+ENTER to launch
@@ -203,12 +202,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         match ev {
             // ESC or shift + backspace -> delete
-            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "e") => {
-                km.press_key(ec::KEY_DELETE, "")
-            }
-            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => {
-                km.press_key(ec::KEY_DELETE, "")
-            }
+            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "e") => km.press_key(ec::KEY_DELETE, ""),
+            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => km.press_key(ec::KEY_DELETE, ""),
 
             _ => km.send_event(&ev),
         };

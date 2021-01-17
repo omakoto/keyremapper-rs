@@ -7,10 +7,7 @@ use regex::Regex;
 
 fn compile_resources(src: &str) {
     let dest: String = {
-        let mut dest = Regex::new(r#"\.gresource$"#)
-            .unwrap()
-            .replace(src, "")
-            .to_string();
+        let mut dest = Regex::new(r#"\.gresource$"#).unwrap().replace(src, "").to_string();
         dest.push_str(".bin");
         dest
     };
@@ -53,9 +50,7 @@ fn main() {
         .expect("Unable to generate bindings");
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
-        .write_to_file(out_path.join("native-bindings.rs"))
-        .expect("Couldn't write bindings!");
+    bindings.write_to_file(out_path.join("native-bindings.rs")).expect("Couldn't write bindings!");
 
     // Build the icon binaries.
     println!("cargo:rerun-if-changed=src/res/icons.gresource");

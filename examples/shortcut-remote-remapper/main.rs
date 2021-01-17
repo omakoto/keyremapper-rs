@@ -30,9 +30,7 @@ const KEYS: &'static [i32] = &[
     ec::KEY_LEFTSHIFT,
 ];
 
-const KEY_LABELS: &'static [&str] = &[
-    "1", "2", "3", "4", "5", "6", "7", "8", "9", "Left", "Right", "Button",
-];
+const KEY_LABELS: &'static [&str] = &["1", "2", "3", "4", "5", "6", "7", "8", "9", "Left", "Right", "Button"];
 
 fn find_key_index(key: i32) -> i32 {
     for (i, k) in KEYS.iter().enumerate() {
