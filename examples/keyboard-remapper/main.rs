@@ -118,9 +118,9 @@ lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
 }
 
-extern "C" {
-    fn XInitThreads() -> c_int;
-}
+// extern "C" {
+//     fn XInitThreads() -> c_int;
+// }
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -148,7 +148,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         log::debug!("Calling XInitThreads()...");
         unsafe {
-            XInitThreads();
+            // XInitThreads();
         }
         log::debug!("Done calling XInitThreads()...");
     });
