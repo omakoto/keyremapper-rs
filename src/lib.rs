@@ -35,7 +35,6 @@ pub mod res;
 pub(crate) mod select;
 pub(crate) mod singleton;
 pub mod udev;
-pub mod ui;
 
 pub use crate::config::*;
 
@@ -345,10 +344,6 @@ impl KeyRemapper {
         let ui = self.ui.lock();
         ui.borrow_mut()
             .show_notiication_with_timeout(message, timeout);
-    }
-
-    pub fn get_active_window(&self) -> ui::WindowInfo {
-        ui::WindowInfo::from_active_window()
     }
 
     fn ensure_uinput(&self) {

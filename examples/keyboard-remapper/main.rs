@@ -155,15 +155,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let is_caps_pressed = km.is_capslock_pressed();
 
-        let is_chrome = || {
-            let wi = km.get_active_window();
-            return wi.class_group_name == "Google-chrome";
-        };
-        // fn is_chrome() -> bool {
-        //     let wi = km.get_active_window();
-        //     return wi.class_group_name == "Google-chrome";
-        // };
-
         // For x-keys. Convert to Shift+Ctrl+[number]
         if is_xkeys {
             // Special casing the first two keys.
@@ -217,16 +208,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => {
                 km.press_key(ec::KEY_DELETE, "")
-            }
-
-            // For chrome
-            //  F5 -> back
-            //  F6 -> forward
-            _ if km.key_pressed(ev, &[ec::KEY_F5], &[1, 2], "") && is_chrome() => {
-                km.press_key(ec::KEY_BACK, "")
-            }
-            _ if km.key_pressed(ev, &[ec::KEY_F6], &[1, 2], "") && is_chrome() => {
-                km.press_key(ec::KEY_FORWARD, "")
             }
 
             _ => km.send_event(&ev),

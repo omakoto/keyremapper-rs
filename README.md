@@ -31,10 +31,37 @@ See also:
 - `sudo apt install -y libappindicator3-dev libgtk-3-dev libevdev-dev libudev-dev libwnck-3-dev`
 
 
+## How to change mapping for different apps?
+
+The previous version written in Python (https://github.com/omakoto/key-remapper) supported it using libwnck.
+
+I tried the same thing but faced problems:
+
+- First, using libwnck in a worker thread (the I/O thread) caused the follwoing problem.
+
+```
+(keyboard-remapper:444669): Wnck-CRITICAL **: 18:20:10.378: update_client_list: assertion 'reentrancy_guard == 0' failed
+[xcb] Unknown sequence number while processing reply
+[xcb] Most likely this is a multi-threaded client and XInitThreads has not been called
+[xcb] Aborting, sorry about that.
+keyboard-remapper: ../../src/xcb_io.c:641: _XReply: Assertion `!xcb_xlib_threads_sequence_lost' failed.
+./start-keyboard-remapper.sh: line 7: 444669 Aborted                 (core dumped) RUST_BACKTRACE=1 RUST_LOG=debug cargo run --example $prog_name -- "$@"
+```
+- Calling `XInitThreads()` in the I/O thread still caused anther problem. (Deadlock or something, forgot.)
+- Then I tired https://github.com/psychon/x11rb, following https://www.reddit.com/r/rust/comments/f7yrle/get_information_about_current_window_xorg/ (the branch: https://github.com/omakoto/keyremapper-rs/blob/wnck-bg-thread/src/ui/mod.rs), which did work, if I called `XInitThreads()` in the worker thread.
+- However, calling `XInitThreads()` in a non-mainthread appears to break
+libappindicator -- if I click the task tray icon, the process seg faults.
+
+- The python version did the I/O on the mainthread, using https://developer.gnome.org/pygobject/stable/glib-functions.html#function-glib--io-add-watch. In order to do this, I need to integrate the device polling into the gtk main loop, which however doesn't seem to be supported with the current versin of gtk-rs. The relevant APIs (e.g. `g_source_add_unix_fd()` -- see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html) all seems to be left unimplemented with TODOs.
+
+Getting the current window information doesn't seem to be supported by wayland by design for "security" anyway, so I've decided not to do it.
+
+
 ## TODOs
 
 - Better error handling (chain, stacktrace, etc?)
 - Handle libevdev_read_status_LIBEVDEV_READ_STATUS_SYNC properly.
+- Better APIs.
 
 ## Links
 
@@ -54,8 +81,7 @@ See also:
 
 - gresource: https://developer.gnome.org/gio/stable/GResource.html
 
-
-## Appendix A: runni code on the main thread
+## Appendix A: runnig code on the main thread
 
 From https://coaxion.net/blog/2019/02/mpsc-channel-api-for-painless-usage-of-threads-with-gtk-in-rust/
 
