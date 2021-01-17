@@ -348,6 +348,7 @@ impl KeyRemapper {
         self.send_events(&events);
     }
 
+    /// Reset all uinput devices.
     pub fn reset_out(&self) {
         let all_uinputs = self.all_uinputs.lock();
         for uinput in all_uinputs.borrow_mut().iter() {
@@ -382,10 +383,6 @@ impl KeyRemapper {
 
     pub fn is_esc_pressed(&self) -> bool {
         self.is_key_pressed(ec::KEY_ESC)
-    }
-
-    pub fn is_capslock_pressed(&self) -> bool {
-        self.is_key_pressed(ec::KEY_CAPSLOCK)
     }
 
     pub fn get_out_key_state(&self, code: i32) -> i32 {
@@ -462,7 +459,6 @@ impl KeyRemapper {
         let shift = modifiers.contains('s');
         let win = modifiers.contains('w');
         let esc = modifiers.contains('e'); // Allow ESC to be used as a modifier.
-        let caps = modifiers.contains('p'); // Allow CAPS to be used as a modifier.
 
         if self.is_alt_pressed() != alt && (alt || !ignore_other_modifiers) {
             return false;
@@ -484,9 +480,6 @@ impl KeyRemapper {
             return false;
         }
 
-        if self.is_capslock_pressed() != caps && (caps || !ignore_other_modifiers) {
-            return false;
-        }
         return true;
     }
 

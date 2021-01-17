@@ -77,7 +77,6 @@ static MODIFIER_KEYS: &[i32] = &[
     ec::KEY_RIGHTSHIFT,
     ec::KEY_LEFTMETA,
     ec::KEY_RIGHTMETA,
-    ec::KEY_CAPSLOCK, // In this remapper, CAPS is used as a modifier.
     ec::KEY_ESC,      // In this remapper, ESC is used as a modifier.
 ];
 
@@ -101,6 +100,12 @@ impl Wheeler {
     fn reset(&mut self) {
         self.vwheel_speed = 0;
         self.hwheel_speed = 0;
+    }
+
+    fn set_vwheel(&mut self, value: i32) {
+    }
+
+    fn set_hwheel(&mut self, value: i32) {
     }
 }
 
@@ -141,6 +146,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         state.wheeler = Some(Wheeler::new(km.create_mouse_uinput("-wheel")));
     });
 
+    config.on_devices_lost(|_km| {
+        let lock = STATE.lock();
+        let mut state = lock.borrow_mut();
+
+        state.wheeler.as_mut().unwrap().reset();
+    });
+
     config.on_event(|km, device, ev| {
         if ev.event_type != EventType::EV_KEY {
             return; // Ignore non-key events.
@@ -151,8 +163,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let is_thinkpad = device.name().starts_with("AT");
         let is_xkeys = device.name().starts_with("P. I.");
-
-        let is_caps_pressed = km.is_capslock_pressed();
 
         // For x-keys. Convert to Shift+Ctrl+[number]
         if is_xkeys {
@@ -169,19 +179,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut ev = &mut ev.clone();
 
         // Special for the thinkpad keyboard. Use INS/DEL as PAGEUP/DOWN, unless caps is pressed.
-        if is_thinkpad && !is_caps_pressed {
+        if is_thinkpad && !km.is_key_pressed(ec::KEY_CAPSLOCK) {
             match ev.code {
-                ec::KEY_INSERT => {
-                    ev.code = ec::KEY_PAGEUP;
-                }
-                ec::KEY_DELETE => {
-                    ev.code = ec::KEY_PAGEDOWN;
-                }
+                ec::KEY_INSERT => ev.code = ec::KEY_PAGEUP,
+                ec::KEY_DELETE => ev.code = ec::KEY_PAGEDOWN, 
                 _ => {}
             }
         }
 
-        // Special ESC handling: Don't send "ESC-press" at key-down, but instead send it on key-*up*, unless
+        // Special ESC handling: Don't send "ESC-press" on key-down, but instead send it on key-*up*, unless
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
         if ev.code == ec::KEY_ESC {
@@ -194,8 +200,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             return;
         }
-        // If other keys are pressed, clear pending_esc_pressed, but don't do so for modifier key presses
-        // in order to allow combos like "ESC+ctrl+Backspace".
+
+        // If other keys (than ESC) are pressed, clear pending_esc_pressed, but don't do so on modifier key presses, in order to
+        // allow combos like "ESC+ctrl+Backspace".
         if !MODIFIER_KEYS.contains(&ev.code) {
             state.pending_esc_pressed = false;
         }
@@ -205,6 +212,59 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "e") => km.press_key(ec::KEY_DELETE, ""),
             _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => km.press_key(ec::KEY_DELETE, ""),
 
+
+            // See VERSATILE_KEYS.
+            _ if km.key_pressed(ev, VERSATILE_KEYS, &[1, 2], "e") => km.press_key(ev.code, "acsw"),
+
+
+            // ESC + home/end -> ATL+Left/Right (back / forward)
+            _ if km.key_pressed(ev, &[ec::KEY_HOME], &[1, 2], "e") => km.press_key(ec::KEY_LEFT, "a"),
+            _ if km.key_pressed(ev, &[ec::KEY_END], &[1, 2], "e") => km.press_key(ec::KEY_RIGHT, "a"),
+
+
+            // ESC + Pageup -> ctrl + pageup (prev tab)
+            // ESC + Pagedown -> ctrl + pagedown (next tab)
+            // (meaning ESC + ins/del act as them too on thinkpad.)
+            _ if km.key_pressed(ev, &[ec::KEY_PAGEUP, ec::KEY_PAGEDOWN], &[1, 2], "e") => km.press_key(ev.code, "c"),
+
+            
+            // ESC + caps lock -> caps lock, in case I ever need it.
+            _ if km.key_pressed(ev, &[ec::KEY_CAPSLOCK], &[1, 2], "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
+
+            // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
+            _ if km.key_pressed(ev, &[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], &[0, 1, 2], "e*") => {
+                if ev.value != 1 {
+                    state.wheeler.as_mut().unwrap().set_vwheel(0);
+                
+                } else if [ec::KEY_K, ec::KEY_C].contains(&ev.code) {
+                    state.wheeler.as_mut().unwrap().set_vwheel(1);
+                
+                } else if [ec::KEY_J, ec::KEY_SPACE].contains(&ev.code) {
+                    state.wheeler.as_mut().unwrap().set_vwheel(1);
+                }
+
+                return;
+            },
+            _ if km.key_pressed(ev, &[ec::KEY_L, ec::KEY_H], &[0, 1, 2], "e*") => {
+                if ev.value != 1 {
+                    state.wheeler.as_mut().unwrap().set_hwheel(0);
+                
+                } else if [ec::KEY_L].contains(&ev.code) {
+                    state.wheeler.as_mut().unwrap().set_hwheel(1);
+                
+                } else if [ec::KEY_H].contains(&ev.code) {
+                    state.wheeler.as_mut().unwrap().set_hwheel(-1);
+                }
+                return;
+            },
+
+            // ESC + other alphabet -> ctrl + shift + the key.
+            _ if km.key_pressed(ev, ALPHABET_KEYS, &[1, 2], "e") => km.press_key(ev.code, "cs"),
+
+            // Don't use capslock alone.
+            _ if ev.code == ec::KEY_CAPSLOCK => return,
+
+            // Default: Just send the original key event.
             _ => km.send_event(&ev),
         };
     });
