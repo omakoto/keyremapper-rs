@@ -18,7 +18,7 @@ use rand::prelude::*;
 use evdev::{
     ec::{self, EventType},
     uinput::SyncedUinput,
-    EventsDescriptor, InputEventTracker,
+    EventsDescriptor, InputEventTracker, KeyEventType,
 };
 
 use gtk::prelude::*;
@@ -499,6 +499,10 @@ impl KeyRemapper {
     }
 
     pub fn key_pressed(&self, event: &evdev::InputEvent, keys: &[i32], values: &[i32], modifiers: &str) -> bool {
+        (event.event_type == ec::EventType::EV_KEY) && keys.contains(&event.code) && values.contains(&event.value) && self.are_modifiers_pressed(modifiers)
+    }
+
+    pub fn any_key_pressed(&self, event: &evdev::InputEvent, keys: &[i32], values: &[i32], modifiers: &str) -> bool {
         (event.event_type == ec::EventType::EV_KEY) && keys.contains(&event.code) && values.contains(&event.value) && self.are_modifiers_pressed(modifiers)
     }
 

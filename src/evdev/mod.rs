@@ -1,16 +1,15 @@
 use glob::{self, PatternError};
-use std::{fmt, str::Utf8Error};
 use std::{error::Error, os::unix::io::AsRawFd};
+use std::{fmt, str::Utf8Error};
 
-pub mod ec;
-pub mod uinput;
-pub mod input_event;
 pub mod device;
+pub mod ec;
+pub mod input_event;
 pub mod tracker;
+pub mod uinput;
 
-
-pub use input_event::*;
 pub use device::*;
+pub use input_event::*;
 pub use tracker::*;
 
 #[derive(Debug)]
@@ -71,4 +70,3 @@ impl From<Box<dyn Error>> for EvdevError {
         return EvdevError::UnknownError(err);
     }
 }
-

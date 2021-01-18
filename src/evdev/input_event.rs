@@ -4,6 +4,23 @@ use crate::native;
 
 use super::ec;
 
+pub enum KeyEventType {
+    Pressed,
+    Released,
+    Down,
+}
+
+impl KeyEventType {
+    fn match_event(&self, ev: &InputEvent) -> bool {
+        return match self {
+            KeyEventType::Pressed => ev.is_key_pressed_event(),
+            KeyEventType::Released => ev.is_key_released_event(),
+            KeyEventType::Down => ev.is_key_down_event(),
+        };
+    }
+}
+
+/// Represents a single event. See https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InputEvent {
     pub time_sec: i64,
@@ -72,8 +89,89 @@ impl InputEvent {
     }
 
     /// Return true if it's a SYN_REPORT event.
+    #[inline]
     pub fn is_syn_report(&self) -> bool {
         return self.event_type == ec::EventType::EV_SYN && self.code == ec::SYN_REPORT && self.value == 0;
+    }
+
+    #[inline]
+    pub fn is_key_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_KEY;
+    }
+
+    #[inline]
+    pub fn is_key(&self, key: i32) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && key == self.code;
+    }
+
+    #[inline]
+    pub fn is_key_pressed(&self, key: i32) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 1 && key == self.code;
+    }
+
+    #[inline]
+    pub fn is_key_released(&self, key: i32) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 0 && key == self.code;
+    }
+
+    #[inline]
+    pub fn is_key_down(&self, key: i32) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value > 0 && key == self.code;
+    }
+
+    #[inline]
+    pub fn is_any_key(&self, keys: &[i32]) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && keys.contains(&self.code);
+    }
+
+    #[inline]
+    pub fn is_any_key_pressed(&self, keys: &[i32]) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 1 && keys.contains(&self.code);
+    }
+
+    #[inline]
+    pub fn is_any_key_released(&self, keys: &[i32]) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 0 && keys.contains(&self.code);
+    }
+
+    #[inline]
+    pub fn is_any_key_down(&self, keys: &[i32]) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value > 0 && keys.contains(&self.code);
+    }
+
+    #[inline]
+    pub fn is_key_pressed_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 1;
+    }
+
+    #[inline]
+    pub fn is_key_down_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value > 0;
+    }
+
+    #[inline]
+    pub fn is_key_released_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 0;
+    }
+
+    #[inline]
+    pub fn is_rep_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_REP;
+    }
+
+    #[inline]
+    pub fn is_msc_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_MSC;
+    }
+
+    #[inline]
+    pub fn is_rel_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_REL;
+    }
+
+    #[inline]
+    pub fn is_abs_event(&self) -> bool {
+        return self.event_type == ec::EventType::EV_ABS;
     }
 }
 

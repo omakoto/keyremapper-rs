@@ -328,7 +328,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     config.on_event(|km, device, ev| {
-        if ev.event_type != EventType::EV_KEY {
+        if !ev.is_key_event() {
             return; // Ignore non-key events.
         }
 
@@ -342,6 +342,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         if is_xkeys {
             // Special casing the first two keys.
             match ev {
+                // _ if km.key_pressed(ev, &[ec::KEY_1], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
+                // _ if km.key_pressed(ev, &[ec::KEY_2], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
                 _ if km.key_pressed(ev, &[ec::KEY_1], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
                 _ if km.key_pressed(ev, &[ec::KEY_2], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
                 _ if ev.value == 1 => km.press_key(ev.value, "sacw"),
@@ -403,9 +405,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
             _ if km.key_pressed(ev, &[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], &[0, 1, 2], "e*") => {
-                if ev.value == 0 {
+                if ev.is_key_released_event() {
                     state.wheeler.as_mut().unwrap().set_vwheel(0);
-                } else if ev.value == 1 {
+                } else if ev.is_key_pressed_event() {
                     if [ec::KEY_K, ec::KEY_C].contains(&ev.code) {
                         state.wheeler.as_mut().unwrap().set_vwheel(1);
                     } else if [ec::KEY_J, ec::KEY_SPACE].contains(&ev.code) {
@@ -415,9 +417,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 return;
             }
             _ if km.key_pressed(ev, &[ec::KEY_L, ec::KEY_H], &[0, 1, 2], "e*") => {
-                if ev.value == 0 {
+                if ev.is_key_released_event() {
                     state.wheeler.as_mut().unwrap().set_hwheel(0);
-                } else if ev.value == 1 {
+                } else if ev.is_key_pressed_event() {
                     if [ec::KEY_L].contains(&ev.code) {
                         state.wheeler.as_mut().unwrap().set_hwheel(1);
                     } else if [ec::KEY_H].contains(&ev.code) {

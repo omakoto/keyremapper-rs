@@ -1,9 +1,12 @@
+use std::os::unix::io::AsRawFd;
 use std::{collections::HashMap, fs::File, path::Path, sync::Arc};
-use std::{os::unix::io::AsRawFd};
 
 use crate::native::{self, string_from_c_str};
 
-use super::{EvdevError, InputEvent, ec::{self, EventType}};
+use super::{
+    ec::{self, EventType},
+    EvdevError, InputEvent,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct EvdevAbsInfo {
