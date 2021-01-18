@@ -62,6 +62,8 @@ pub struct KeyRemapperConfiguration {
     pub(crate) device_name_regex_re: Option<Regex>,
     pub(crate) id_regex_re: Option<Regex>,
 
+    pub(crate) use_system_tray: bool,
+
     pub(crate) use_non_keyboard: bool,
     pub(crate) grab_devices: bool,
     pub(crate) write_to_uinput: bool,
@@ -81,6 +83,7 @@ impl KeyRemapperConfiguration {
             icon: None,
             device_name_regex: device_name_regex.to_string(),
             id_regex: "".to_string(),
+            use_system_tray: true,
             use_non_keyboard: true,
             grab_devices: true,
             write_to_uinput: true,
@@ -109,6 +112,11 @@ impl KeyRemapperConfiguration {
 
     pub fn set_id_regex(&mut self, value: &str) -> &mut KeyRemapperConfiguration {
         self.id_regex = value.to_string();
+        self
+    }
+
+    pub fn set_use_system_tray(&mut self, value: bool) -> &mut KeyRemapperConfiguration {
+        self.use_system_tray = value;
         self
     }
 

@@ -95,14 +95,14 @@ impl ColorMode {
 
     pub fn rel_event(&self) -> &'static str {
         return match self {
-            ColorMode::Always => "\x1b[95;1m",
+            ColorMode::Always => "\x1b[93;1m",
             _ => "",
         };
     }
 
     pub fn abs_event(&self) -> &'static str {
         return match self {
-            ColorMode::Always => "\x1b[93;1m",
+            ColorMode::Always => "\x1b[95;1m",
             _ => "",
         };
     }
@@ -140,7 +140,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     config
         .set_use_non_keyboard(true) // Read from all devices.
         .set_grab(false) // This allows to read from othre keyremapper uinput devices.
-        .set_write_to_uinput(false); // No need to create a uinput device.
+        .set_write_to_uinput(false) // No need to create a uinput device.
+        .set_use_system_tray(false);
 
     config.on_init_args(|app| {
         return app.arg(

@@ -139,7 +139,7 @@ impl KeyRemapperInput {
 }
 
 pub struct KeyRemapperUi {
-    app_indicator: AppIndicator,
+    app_indicator: Option<AppIndicator>,
     notification: NotificationHandle,
 }
 
@@ -155,37 +155,43 @@ fn restart_process() {
 
 impl KeyRemapperUi {
     fn new(config: &KeyRemapperConfiguration) -> Result<KeyRemapperUi> {
-        let mut indicator = AppIndicator::new(&config.name, "");
-        indicator.set_status(AppIndicatorStatus::Active);
+        let indicator = if !config.use_system_tray {
+            None
+        } else {
+            let mut indicator = AppIndicator::new(&config.name, "");
+            indicator.set_status(AppIndicatorStatus::Active);
 
-        // Set up for GUIss
+            // Set up for GUIss
 
-        // Set the icon.
-        let icon = match &config.icon {
-            Some(path) => path.clone(),
-            None => res::get_gio_resource_as_file("keyremapper-rs", res::DEFAULT_ICON_NAME, &|| {
-                return res::load_gio_resources();
-            }),
+            // Set the icon.
+            let icon = match &config.icon {
+                Some(path) => path.clone(),
+                None => res::get_gio_resource_as_file("keyremapper-rs", res::DEFAULT_ICON_NAME, &|| {
+                    return res::load_gio_resources();
+                }),
+            };
+
+            indicator.set_icon(&(icon.into_os_string().into_string().unwrap()));
+
+            // Set up the menu.
+            let mut m = gtk::Menu::new();
+            let menu_quit = gtk::MenuItem::with_label(&format!("Exit {}", config.name));
+            menu_quit.connect_activate(|_| {
+                gtk::main_quit();
+            });
+            m.append(&menu_quit);
+
+            let menu_restart = gtk::MenuItem::with_label(&format!("Restart {}", config.name));
+            menu_restart.connect_activate(|_| {
+                restart_process();
+            });
+            m.append(&menu_restart);
+
+            indicator.set_menu(&mut m);
+            m.show_all();
+
+            Some(indicator)
         };
-
-        indicator.set_icon(&(icon.into_os_string().into_string().unwrap()));
-
-        // Set up the menu.
-        let mut m = gtk::Menu::new();
-        let menu_quit = gtk::MenuItem::with_label(&format!("Exit {}", config.name));
-        menu_quit.connect_activate(|_| {
-            gtk::main_quit();
-        });
-        m.append(&menu_quit);
-
-        let menu_restart = gtk::MenuItem::with_label(&format!("Restart {}", config.name));
-        menu_restart.connect_activate(|_| {
-            restart_process();
-        });
-        m.append(&menu_restart);
-
-        indicator.set_menu(&mut m);
-        m.show_all();
 
         let mut notification = Notification::new();
         let notification = notification.summary(&config.name).body(&format!("{} started", config.name)).show().unwrap();
