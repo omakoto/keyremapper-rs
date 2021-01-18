@@ -36,18 +36,14 @@ impl Display for InputEvent {
         if self.is_syn_report() {
             return write!(f, "{{InputEvent: time={}.{:06} ===== SYN_REPORT =====}}", self.time_sec, self.time_usec);
         }
-        let type_str = match ec::get_type_name(self.event_type as i32) {
-            v if v.len() > 0 => v.to_string(),
-            _ => format!("[Unknown type {}]", self.event_type as i32),
-        };
-        let code_str = match ec::get_code_name(self.event_type as i32, self.code) {
-            v if v.len() > 0 => v.to_string(),
-            _ => format!("[Unknown code {}]", self.code),
-        };
         return write!(
             f,
             "{{InputEvent: time={}.{:06} type={} code={} value={}}}",
-            self.time_sec, self.time_usec, type_str, code_str, self.value
+            self.time_sec,
+            self.time_usec,
+            self.type_name(),
+            self.code_name(),
+            self.value
         );
     }
 }
@@ -89,6 +85,20 @@ impl InputEvent {
             event_type: ec::EventType::from_i32(ie.type_ as i32),
             code: ie.code as i32,
             value: ie.value as i32,
+        };
+    }
+
+    pub fn type_name(&self) -> String {
+        return match ec::get_type_name(self.event_type as i32) {
+            v if v.len() > 0 => v.to_string(),
+            _ => format!("[Unknown type {}]", self.event_type as i32),
+        };
+    }
+
+    pub fn code_name(&self) -> String {
+        return match ec::get_code_name(self.event_type as i32, self.code) {
+            v if v.len() > 0 => v.to_string(),
+            _ => format!("[Unknown code {}]", self.code),
         };
     }
 
