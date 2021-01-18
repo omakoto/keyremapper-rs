@@ -137,7 +137,7 @@ impl Remapper {
             None => {
                 log::warn!("Unknown key detected: {}", ev);
                 return;
-                },
+            }
         };
 
         // Find the "to" key.

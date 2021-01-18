@@ -2,6 +2,22 @@
 
 A Rust library to help enable AHK like flexible key remapping.
 
+## What it is and what it provides
+
+At a high level, it allows to "steal" input events from specific input devices
+(keyboards, pointing devices, etc) using evdev, modify with your rust code and inject using
+`/dev/uinput`, which allows to create a versatile mapping.
+
+- Unlike AHK, KeyRemapper is a library. Your "script" is a full rust program.
+
+- Unlike AHK, KeyRemapper can distinguish different input devices, and allows you to handle different
+  devices differently.
+
+- Unlike AHK, KeyRemapper doesn't provide any features to allow to use different mappings for
+  different apps, or to control windows, etc. You need to write code to do such things.
+
+  (See also later section for creating different mappings for different apps.)
+  
 ## Prerequisite
 
 ### 1. Gain access to `/devn/input/*` and `/dev/uinput`
@@ -31,7 +47,31 @@ See also:
 - `sudo apt install -y libappindicator3-dev libgtk-3-dev libevdev-dev libudev-dev libwnck-3-dev`
 
 
-## How to change mapping for different apps?
+## Samples
+ 
+Note: all the following samples will _remap only certain kinds of keyboards_ specified
+by the regex `DEVICE_RE` in them. In order to use them with your input devices, use the `--match-device-name` option and provide a regex that
+matches your input device. Find the device name using `evtest`.
+
+If you need to disdistinguish different devices with the same name,
+provide a regex mathing the vendor/product ID with the `--match-id` option.
+
+- [keyboard-remapper.py](blob/main/examples/keyboard-remapper/main.rs)
+  - For the following 3 keyboards:
+    - The Thinkpad Internal keyboard (at least for X1 carbon gen7 and P1 gen2)
+    - Topre Realforce
+    - https://www.amazon.com/gp/product/B00EZ4A2OQ
+  - Adds various shortcuts using `ESC`.
+  - Creates an extra uinput device to inject mouse wheel events.
+    e.g. `ESC` + `H`, `J`, `K` and `L` for virtucal and horizontal scroll.
+
+- [shortcut-remote-remapper](blob/main/examples/shortcut-remote-remapper/main.rs) for https://www.amazon.com/gp/product/B01NC2LEYP
+
+- [trackpoint-speedup](blob/main/examples/trackpoint-speedup/main.rs) Speed up Thinkpad trackpoint.
+   I can never figure out how to easily do it.
+
+
+## Does to support creating different mappings for different apps?
 
 The previous version written in Python (https://github.com/omakoto/key-remapper) supported it using libwnck.
 

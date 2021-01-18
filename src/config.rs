@@ -79,10 +79,10 @@ impl KeyRemapperConfiguration {
             icon: None,
             device_name_regex: device_name_regex.to_string(),
             id_regex: "".to_string(),
-            use_non_keyboard: false,
+            use_non_keyboard: true,
             grab_devices: true,
             write_to_uinput: true,
-            uinput_events: EventsDescriptor::default(), // TODO Set all KEY_/BTN_* events by default
+            uinput_events: EventsDescriptor::default(),
             global_lock_name: String::new(),
             uinput_device_name_suffix: String::new(),
             callbacks: Arc::new(RwLock::new(KeyRemapperCallbacks::new())),

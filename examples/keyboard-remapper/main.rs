@@ -264,7 +264,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     config
         .set_icon(icon)
         .set_id_regex(ID_RE)
-        .set_use_non_keyboard(false)
+        .set_use_non_keyboard(true)
         .set_grab(true)
         .set_write_to_uinput(true);
 
