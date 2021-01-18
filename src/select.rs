@@ -31,7 +31,7 @@ extern crate libc;
 use std::{io, ptr, time};
 use std::{mem::MaybeUninit, os::unix::io::RawFd};
 
-pub struct FdSet(libc::fd_set);
+pub(crate) struct FdSet(libc::fd_set);
 
 impl FdSet {
     pub fn new() -> FdSet {
@@ -56,7 +56,7 @@ impl FdSet {
     }
 }
 
-pub fn pselect(
+pub(crate) fn pselect(
     nfds: libc::c_int,
     readfds: Option<&mut FdSet>,
     writefds: Option<&mut FdSet>,
@@ -92,9 +92,35 @@ pub fn pselect(
     }
 }
 
-pub fn make_timespec(duration: time::Duration) -> libc::timespec {
+pub(crate) fn make_timespec(duration: time::Duration) -> libc::timespec {
     libc::timespec {
         tv_sec: duration.as_secs() as i64,
         tv_nsec: duration.subsec_nanos() as i64,
+    }
+}
+
+pub(crate) fn select(fds: &Vec<RawFd>) -> io::Result<RawFd> {
+    if fds.len() == 0 {
+        panic!("fds can't be empty");
+    }
+    unsafe {
+        loop {
+            let mut fd_set = FdSet::new();
+            for fd in fds {
+                fd_set.set(*fd);
+            }
+            let max = fds.iter().max().unwrap();
+
+            let mut sigmask: libc::sigset_t = MaybeUninit::zeroed().assume_init();
+            libc::sigemptyset(&mut sigmask as *mut libc::sigset_t);
+
+            pselect(max + 1, Some(&mut fd_set), None, None, None, Some(&sigmask))?;
+            for i in 0..(max + 1) {
+                if fd_set.is_set(i) {
+                    return Ok(i);
+                }
+            }
+            log::warn!("No fds selected after pselect()!");
+        }
     }
 }

@@ -191,9 +191,12 @@ mod wheeler {
                     }
                     if v == 0 && h == 0 {
                         // log::debug!("Wheel stop");
+
+                        // No wheel event. Wait until the next one...
                         last_started = zero_instant;
                         self.cond.wait(&mut inner);
                     } else {
+                        // Remeber the scholl start time.
                         if last_started == zero_instant {
                             last_started = Instant::now();
                         }
@@ -214,6 +217,7 @@ mod wheeler {
                         .unwrap();
                 }
 
+                // Insert a delay.
                 let wait = if Instant::now().duration_since(last_started) >= self.first_scroll_delay {
                     self.fast_scroll_interval
                 } else {
@@ -262,6 +266,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .set_grab(true)
         .set_write_to_uinput(true);
 
+    // Set up arguments.
     config.on_init_args(|app| {
         return app
             .arg(
@@ -290,6 +295,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             );
     });
 
+    // Parse arguments.
     config.on_args_parsed(|matches| {
         let lock = STATE.lock();
         let mut state = lock.borrow_mut();
@@ -383,7 +389,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             state.pending_esc_pressed = false;
         }
 
-        match ev {
+        match 0 {
             // ESC or shift + backspace -> delete
             _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "e") => km.press_key(ec::KEY_DELETE, ""),
             _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => km.press_key(ec::KEY_DELETE, ""),
@@ -414,7 +420,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         state.wheeler.as_mut().unwrap().set_vwheel(-1);
                     }
                 }
-                return;
             }
             _ if km.key_pressed(ev, &[ec::KEY_L, ec::KEY_H], &[0, 1, 2], "e*") => {
                 if ev.is_key_released_event() {
@@ -426,14 +431,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                         state.wheeler.as_mut().unwrap().set_hwheel(-1);
                     }
                 }
-                return;
             }
 
             // ESC + other alphabet -> ctrl + shift + the key.
             _ if km.key_pressed(ev, ALPHABET_KEYS, &[1, 2], "e") => km.press_key(ev.code, "cs"),
 
             // Don't use capslock alone.
-            _ if ev.code == ec::KEY_CAPSLOCK => return,
+            _ if ev.code == ec::KEY_CAPSLOCK => {}
 
             // Default: Just send the original key event.
             _ => km.send_event(&ev),

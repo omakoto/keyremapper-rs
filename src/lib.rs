@@ -306,10 +306,12 @@ impl KeyRemapper {
         all_uinputs.borrow_mut().push(uinput.clone());
     }
 
+    /// Show a notification with the given message.
     pub fn show_notiication(&self, message: &str) {
         self.show_notiication_with_timeout(message, Duration::from_secs(3))
     }
 
+    /// Show a notification with the given message with a custom timeout.
     pub fn show_notiication_with_timeout(&self, message: &str, timeout: Duration) {
         let ui = self.ui.lock();
         ui.borrow_mut().show_notiication_with_timeout(message, timeout);
@@ -321,25 +323,30 @@ impl KeyRemapper {
         }
     }
 
+    /// Send a SYN_REPORT event. Normally `SyncedUinput` sends them automatically, so this doesn't need to be called.
     pub fn send_syn_report(&self) {
         self.ensure_uinput();
-        self.uinput.as_ref().unwrap().send_event(&evdev::InputEvent::new_syn_report()).unwrap();
+        self.uinput.as_ref().unwrap().send_syn_report().unwrap();
     }
 
+    /// Send a single event, followed by a syn report.
     pub fn send_event(&self, event: &evdev::InputEvent) {
         self.ensure_uinput();
         self.uinput.as_ref().unwrap().send_event(event).unwrap();
     }
 
+    /// Send multiple events at once, followed by a syn report.
     pub fn send_events(&self, events: &[evdev::InputEvent]) {
         self.ensure_uinput();
         self.uinput.as_ref().unwrap().send_events(events).unwrap();
     }
 
+    /// Send a single key event.
     pub fn send_key_event(&self, code: i32, value: i32) {
         self.send_event(&evdev::InputEvent::new_key_event(code, value));
     }
 
+    /// Send multiple single key events.
     pub fn send_key_events(&self, code_and_values: &[(i32, i32)]) {
         let mut events: Vec<evdev::InputEvent> = vec![];
         for cv in code_and_values {
@@ -415,6 +422,15 @@ impl KeyRemapper {
         self.send_syn_report();
     }
 
+    /// Send a down and up events of a single key, with the given modifiers pressed *and* the other
+    /// modifiers released.
+    /// - `'a'` Alt
+    /// - `'c'` Ctrl
+    /// - `'s'` Shift
+    /// - `'w'` Meta / Windows key
+    ///
+    /// If `modifiers` is `'*'`, then this will only send a key down and up events without
+    /// any modifier key events.
     pub fn press_key(&self, code: i32, modifiers: &str) {
         self.ensure_uinput();
         let _ = self.uinput.as_ref().unwrap().lock();
@@ -450,10 +466,20 @@ impl KeyRemapper {
         self.restore_out_modifier_state(out_modifier_state);
     }
 
+    /// Return true if given modifers are currently pressed. (On the input device, not on the output uinput device.)
+    /// - `'a'` Alt
+    /// - `'c'` Ctrl
+    /// - `'s'` Shift
+    /// - `'w'` Meta / Windows key
+    /// - `'e'` ESC
+    /// - `'*'` Add this to ignore the modifiers that are not specified. e.g. `"ac"` normally means both Alt and Ctrl
+    ///   must be pressed *and* the other modifiers are rnot pressed, while `"ac*"` means both Alt and Ctrl
+    ///   must be pressed but don't care if the other modifiers are pressed.
     pub fn are_modifiers_pressed(&self, modifiers: &str) -> bool {
-        KeyRemapper::validate_modifiers(modifiers, "acswep*");
+        KeyRemapper::validate_modifiers(modifiers, "acswe*");
 
         let ignore_other_modifiers = modifiers.contains('*');
+
         let alt = modifiers.contains('a');
         let ctrl = modifiers.contains('c');
         let shift = modifiers.contains('s');
@@ -502,10 +528,6 @@ impl KeyRemapper {
         (event.event_type == ec::EventType::EV_KEY) && keys.contains(&event.code) && values.contains(&event.value) && self.are_modifiers_pressed(modifiers)
     }
 
-    pub fn any_key_pressed(&self, event: &evdev::InputEvent, keys: &[i32], values: &[i32], modifiers: &str) -> bool {
-        (event.event_type == ec::EventType::EV_KEY) && keys.contains(&event.code) && values.contains(&event.value) && self.are_modifiers_pressed(modifiers)
-    }
-
     // TODO Support changing the tray icon.
     // TODO Support adding menu items.
 }
@@ -530,32 +552,6 @@ fn test_check_modifiers_fail_1() {
 #[should_panic(expected = r#"Modifier "sca" contains an invalid character "c""#)]
 fn test_check_modifiers_fail_2() {
     KeyRemapper::validate_modifiers("sca", "sa");
-}
-
-fn select(fds: &Vec<RawFd>) -> Result<RawFd> {
-    if fds.len() == 0 {
-        panic!("fds can't be empty");
-    }
-    unsafe {
-        loop {
-            let mut fd_set = FdSet::new();
-            for fd in fds {
-                fd_set.set(*fd);
-            }
-            let max = fds.iter().max().unwrap();
-
-            let mut sigmask: libc::sigset_t = MaybeUninit::zeroed().assume_init();
-            libc::sigemptyset(&mut sigmask as *mut libc::sigset_t);
-
-            pselect(max + 1, Some(&mut fd_set), None, None, None, Some(&sigmask))?;
-            for i in 0..(max + 1) {
-                if fd_set.is_set(i) {
-                    return Ok(i);
-                }
-            }
-            log::warn!("No fds selected after pselect()!");
-        }
-    }
 }
 
 /// Main loop, which runs on the I/O thread.
@@ -602,7 +598,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
 
         // Actual event loop.
         'event_loop: loop {
-            let ready_fd = select(&fds).expect("pselect() failed");
+            let ready_fd = select::select(&fds).expect("pselect() failed");
 
             // Handle udev events
             if ready_fd == udev_fd {
@@ -656,7 +652,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
     }
 }
 
-pub fn handle_args(config: &mut KeyRemapperConfiguration) {
+pub fn process_commandline_args(config: &mut KeyRemapperConfiguration) {
     let device_name_regex = config.device_name_regex.clone();
     let id_regex = config.id_regex.clone();
 
@@ -712,7 +708,7 @@ pub fn start(mut config: KeyRemapperConfiguration) {
     ensure_singleton(&config.global_lock_name);
     gtk::init().unwrap();
 
-    handle_args(&mut config);
+    process_commandline_args(&mut config);
 
     let name = config.name.clone();
     log::info!("KeyRemapper started for {}", name);
