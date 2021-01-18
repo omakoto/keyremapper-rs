@@ -4,9 +4,8 @@ extern crate lazy_static;
 use std::{cell::RefCell, error::Error, sync::Arc, time::Duration};
 
 use ec::EventType;
-use evdev::uinput::SyncedUinput;
 use keyremapper::{
-    evdev::{self, ec, EventsDescriptor, InputEvent},
+    evdev::{self, ec},
     res::get_gio_resource_as_file,
     KeyRemapper, KeyRemapperConfiguration,
 };
@@ -87,31 +86,35 @@ const WHEEL_MAKE_FAST_AFTER_THIS_MANY_EVENTS: u32 = 10;
 mod wheeler {
     use std::{cell::RefCell, sync::Arc, thread};
 
-    use keyremapper::evdev::uinput::SyncedUinput;
-    use parking_lot::ReentrantMutex;
+    use keyremapper::evdev::{InputEvent, ec, uinput::SyncedUinput};
+    use parking_lot::{Condvar, Mutex};
+
+    use crate::{WHEEL_MAKE_FAST_AFTER_THIS_MANY_EVENTS, WHEEL_REPEAT_DELAY_FAST, WHEEL_REPEAT_DELAY_NORMAL};
 
     #[derive(Debug)]
     struct Inner {
-        uinput: SyncedUinput,
         vwheel_speed: i32,
         hwheel_speed: i32,
     }
 
     #[derive(Debug, Clone)]
     pub struct Wheeler {
-        inner: Arc<ReentrantMutex<RefCell<Inner>>>,
+        inner: Arc<Mutex<RefCell<Inner>>>,
+        uinput: Arc<SyncedUinput>,
+        cond: Arc<Condvar>,
     }
 
     impl Wheeler {
         pub fn new(uinput: SyncedUinput) -> Wheeler {
             let inner = Inner {
-                uinput,
                 vwheel_speed: 0,
                 hwheel_speed: 0,
             };
 
             return Wheeler {
-                inner: Arc::new(ReentrantMutex::new(RefCell::new(inner))),
+                inner: Arc::new(Mutex::new(RefCell::new(inner))),
+                uinput: Arc::new(uinput),
+                cond: Arc::new(Condvar::new()),
             };
         }
 
@@ -121,10 +124,12 @@ mod wheeler {
         {
             let inner = self.inner.lock();
             callback(&mut inner.borrow_mut());
+            self.cond.notify_one();
         }
 
         pub fn reset(&self) {
             self.with_lock(|inner| {
+                // log::debug!("Wheel reset");
                 inner.vwheel_speed = 0;
                 inner.hwheel_speed = 0;
             });
@@ -132,12 +137,14 @@ mod wheeler {
 
         pub fn set_vwheel(&mut self, value: i32) {
             self.with_lock(|inner| {
+                // log::debug!("Wheel v -> {}", 0);
                 inner.vwheel_speed = value;
             });
         }
 
         pub fn set_hwheel(&mut self, value: i32) {
             self.with_lock(|inner| {
+                // log::debug!("Wheel h -> {}", value);
                 inner.hwheel_speed = value;
             });
         }
@@ -148,10 +155,51 @@ mod wheeler {
             thread::Builder::new()
                 .name(format!("{}-wheeler", super::NAME))
                 .spawn(move || {
-                    log::info!("Wheeler thread started...");
-                    log::debug!("{:?}", clone);
+                    clone.thread_main();
                 })
                 .expect("Unable to wheeler thread");
+        }
+
+        fn thread_main(&self) {
+            log::info!("Wheeler thread started...");
+
+            let mut consecutive_event_count = 0;
+            loop {
+                let mut v = 0;
+                let mut h = 0;
+                loop {
+                    let mut inner = self.inner.lock();
+                    {
+                        let i = inner.borrow();
+                        v = i.vwheel_speed;
+                        h = i.hwheel_speed;
+                    }
+                    if v == 0 && h == 0 {
+                        // log::debug!("Wheel stop");
+                        consecutive_event_count = 0;
+                        self.cond.wait(&mut inner);
+                    } else {
+                        break;
+                    }
+                }
+                consecutive_event_count += 1;
+                // log::debug!("WHEEL! {} {} @ {}", v, h, consecutive_event_count);
+                if v != 0 {
+                    self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_WHEEL, v)).unwrap();
+                    self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_WHEEL_HI_RES, v * 120)).unwrap();
+                }
+                if h != 0 {
+                    self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_HWHEEL, h)).unwrap();
+                    self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_HWHEEL_HI_RES, h * 120)).unwrap();
+                }
+
+                let wait = if consecutive_event_count >= WHEEL_MAKE_FAST_AFTER_THIS_MANY_EVENTS {
+                    WHEEL_REPEAT_DELAY_FAST
+                } else {
+                    WHEEL_REPEAT_DELAY_NORMAL
+                };
+                thread::sleep(wait);
+            }
         }
     }
 }
@@ -279,23 +327,26 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
             _ if km.key_pressed(ev, &[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], &[0, 1, 2], "e*") => {
-                if ev.value != 1 {
+                if ev.value == 0 {
                     state.wheeler.as_mut().unwrap().set_vwheel(0);
-                } else if [ec::KEY_K, ec::KEY_C].contains(&ev.code) {
-                    state.wheeler.as_mut().unwrap().set_vwheel(1);
-                } else if [ec::KEY_J, ec::KEY_SPACE].contains(&ev.code) {
-                    state.wheeler.as_mut().unwrap().set_vwheel(1);
+                } else if ev.value == 1 {
+                    if [ec::KEY_K, ec::KEY_C].contains(&ev.code) {
+                        state.wheeler.as_mut().unwrap().set_vwheel(1);
+                    } else if [ec::KEY_J, ec::KEY_SPACE].contains(&ev.code) {
+                        state.wheeler.as_mut().unwrap().set_vwheel(-1);
+                    }
                 }
-
                 return;
             }
             _ if km.key_pressed(ev, &[ec::KEY_L, ec::KEY_H], &[0, 1, 2], "e*") => {
-                if ev.value != 1 {
+                if ev.value == 0 {
                     state.wheeler.as_mut().unwrap().set_hwheel(0);
-                } else if [ec::KEY_L].contains(&ev.code) {
-                    state.wheeler.as_mut().unwrap().set_hwheel(1);
-                } else if [ec::KEY_H].contains(&ev.code) {
-                    state.wheeler.as_mut().unwrap().set_hwheel(-1);
+                } else if ev.value == 1 {
+                    if [ec::KEY_L].contains(&ev.code) {
+                        state.wheeler.as_mut().unwrap().set_hwheel(1);
+                    } else if [ec::KEY_H].contains(&ev.code) {
+                        state.wheeler.as_mut().unwrap().set_hwheel(-1);
+                    }
                 }
                 return;
             }
