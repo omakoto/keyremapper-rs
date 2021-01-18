@@ -488,14 +488,7 @@ impl KeyRemapper {
 
     fn validate_modifiers(in_modifiers: &str, valid_modifiers: &str) {
         for m in in_modifiers.chars() {
-            let mut ok = false;
-            for v in valid_modifiers.chars() {
-                if m == v {
-                    ok = true;
-                    break;
-                }
-            }
-            if !ok {
+            if !valid_modifiers.contains(m) {
                 panic!(r#"Modifier "{}" contains an invalid character "{}""#, in_modifiers, m);
             }
         }
