@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     // Prepare the icon.
-    let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/knob.png", &|| {
+    let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/circle.png", &|| {
         let data = glib::Bytes::from(include_bytes!("icons.bin"));
         return gio::Resource::from_data(&data).unwrap();
     });
