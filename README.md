@@ -71,7 +71,7 @@ provide a regex mathing the vendor/product ID with the `--match-id` option.
    I can never figure out how to easily do it.
 
 
-## Does to support creating different mappings for different apps?
+## Does it support creating different mappings for different apps?
 
 The previous version written in Python (https://github.com/omakoto/key-remapper) supported it using libwnck.
 
