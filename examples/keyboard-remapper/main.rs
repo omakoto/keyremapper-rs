@@ -4,7 +4,6 @@ extern crate lazy_static;
 use std::{cell::RefCell, error::Error, sync::Arc, time::Duration};
 
 use clap::{value_t, Arg};
-use ec::EventType;
 use keyremapper::{
     evdev::{self, ec},
     res::get_gio_resource_as_file,
