@@ -99,7 +99,6 @@ Getting the current window information doesn't seem to be supported by wayland b
 
 ## TODOs
 
-- Extract wheeler into another file
 - Don't ignore udev device creation events
 - If not grabing, allow to read from other key remapper uinputs.
 
