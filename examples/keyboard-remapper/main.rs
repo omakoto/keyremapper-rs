@@ -3,6 +3,7 @@ extern crate lazy_static;
 
 use std::{cell::RefCell, error::Error, sync::Arc, time::Duration};
 
+use clap::{value_t, Arg};
 use ec::EventType;
 use keyremapper::{
     evdev::{self, ec},
@@ -20,10 +21,10 @@ const NAME: &str = "Keyboard remapper";
 const DEVICE_RE: &str = r#"^(AT Translated Set 2 keyboard|Topre Corporation Realforce|P. I. Engineering XK-16 HID)"#;
 const ID_RE: &str = "^";
 
-// Mouse wheel simuation speed.
-const WHEEL_NORMAL_SCROLL_INTERVAL: Duration = Duration::from_millis(20);
-const WHEEL_FAST_SCROLL_INTERVAL: Duration = Duration::from_millis(5);
-const WHEEL_FAST_SCROLL_DELAY: Duration = Duration::from_millis(100);
+// Simulated mouse wheel speed.
+const NORMAL_SCROLL_INTERNAL: &str = "20";
+const FAST_SCROLL_INTERVAL: &str = "5";
+const FIRST_SCROLL_DELAY: &str = "100";
 
 // ESC + These keys will generate SHIFT+ALT+CTRL+META+[THE KEY]. I launch apps using them -- e.g. ESC+ENTER to launch
 // Chrome.
@@ -262,16 +263,45 @@ fn main() -> Result<(), Box<dyn Error>> {
         .set_write_to_uinput(true);
 
     config.on_init_args(|app| {
-        return app;
+        return app
+            .arg(
+                Arg::with_name("normal_scroll_internal")
+                    .long("normal-scroll-interval-ms")
+                    .value_name("MILLIS")
+                    .default_value(NORMAL_SCROLL_INTERNAL)
+                    .help(r#"Simulated mouse wheel event interval for scrolling"#)
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("fast_scroll_interval")
+                    .long("fast-scroll-interval-ms")
+                    .value_name("MILLIS")
+                    .default_value(FAST_SCROLL_INTERVAL)
+                    .help(r#"Simulated mouse wheel event interval for fast scrolling"#)
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("first_scroll_delay")
+                    .long("fast-scroll-delay-ms")
+                    .value_name("MILLIS")
+                    .default_value(FIRST_SCROLL_DELAY)
+                    .help(r#"Delay before fast mouse whell events kick in"#)
+                    .takes_value(true),
+            );
     });
 
     config.on_args_parsed(|matches| {
         let lock = STATE.lock();
         let mut state = lock.borrow_mut();
 
-        state.normal_scroll_internal = WHEEL_NORMAL_SCROLL_INTERVAL;
-        state.fast_scroll_interval = WHEEL_FAST_SCROLL_INTERVAL;
-        state.first_scroll_delay = WHEEL_FAST_SCROLL_DELAY;
+        let get_arg = |arg: &str| -> Duration {
+            let val = value_t!(matches.value_of(arg), u64).unwrap_or_else(|e| e.exit());
+            return Duration::from_millis(val.max(1));
+        };
+
+        state.normal_scroll_internal = get_arg("normal_scroll_internal");
+        state.fast_scroll_interval = get_arg("fast_scroll_interval");
+        state.first_scroll_delay = get_arg("first_scroll_delay");
     });
 
     config.on_start(|km| {
@@ -286,6 +316,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
         wheeler.start();
         state.wheeler = Some(wheeler);
+
+        log::debug!("{:#?}", state);
     });
 
     config.on_devices_lost(|_km| {

@@ -134,10 +134,10 @@ impl UdevMonitor {
                 let action = string_from_c_str(native::udev_device_get_action(dev));
                 let name = string_from_c_str(native::udev_device_get_sysname(dev));
                 let path = string_from_c_str(native::udev_device_get_devpath(dev));
-                log::debug!("I: ACTION={}\n", action);
-                log::debug!("I: DEVNAME={}\n", name);
-                log::debug!("I: DEVPATH={}\n", path);
-                log::debug!("---\n");
+                log::debug!("ACTION={}", action);
+                log::debug!("DEVNAME={}", name);
+                log::debug!("DEVPATH={}", path);
+                log::debug!("---");
 
                 /* free dev */
                 native::udev_device_unref(dev);
