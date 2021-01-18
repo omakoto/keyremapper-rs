@@ -110,15 +110,55 @@ impl EventsDescriptor {
 
     pub fn with_all_key_events() -> EventsDescriptor {
         let mut ret = EventsDescriptor::new();
+        ret.add_all_key_events();
+        return ret;
+    }
 
+    pub fn add_all_key_events(&mut self) {
         let mut all_keys = vec![];
         for code in ec::ALL_KEYS {
             all_keys.push(*code);
         }
 
-        ret.events.insert(ec::EventType::EV_KEY, all_keys);
+        self.events.insert(ec::EventType::EV_KEY, all_keys);
+    }
 
+    pub fn with_mouse_events() -> EventsDescriptor {
+        let mut ret = EventsDescriptor::new();
+        ret.add_mouse_events();
         return ret;
+    }
+
+    pub fn add_mouse_events(&mut self) {
+        self.events.insert(
+            ec::EventType::EV_KEY,
+            vec![
+                ec::BTN_MOUSE,
+                ec::BTN_LEFT,
+                ec::BTN_MIDDLE,
+                ec::BTN_RIGHT,
+                ec::BTN_SIDE,
+                ec::BTN_EXTRA,
+                ec::BTN_BACK,
+                ec::BTN_FORWARD,
+            ],
+        );
+        self.events.insert(
+            ec::EventType::EV_REL,
+            vec![
+                ec::REL_X,
+                ec::REL_Y,
+                ec::REL_Z,
+                ec::REL_RX,
+                ec::REL_RY,
+                ec::REL_RZ,
+                ec::REL_WHEEL,
+                ec::REL_HWHEEL,
+                ec::REL_WHEEL_HI_RES,
+                ec::REL_HWHEEL_HI_RES,
+                ec::REL_MISC,
+            ],
+        );
     }
 }
 

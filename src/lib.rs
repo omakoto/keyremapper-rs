@@ -1,10 +1,8 @@
 #![allow(dead_code)]
 
-use std::os::unix::io::RawFd;
 use std::{
     cell::RefCell,
     error::Error,
-    mem::MaybeUninit,
     process::{self, Command},
     sync::Arc,
     thread,
@@ -18,13 +16,12 @@ use rand::prelude::*;
 use evdev::{
     ec::{self, EventType},
     uinput::SyncedUinput,
-    EventsDescriptor, InputEventTracker, KeyEventType,
+    EventsDescriptor, InputEventTracker,
 };
 
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 use notify_rust::{Notification, NotificationHandle, Timeout};
-use select::{pselect, FdSet};
 use singleton::ensure_singleton;
 use udev::UdevMonitor;
 
@@ -114,8 +111,6 @@ pub struct KeyRemapperInput {
 
 impl KeyRemapperInput {
     fn new(config: KeyRemapperConfiguration) -> Result<KeyRemapperInput> {
-        // TODO Need a udev too.
-
         // Find the target devices.
         return Ok(KeyRemapperInput {
             config: config,
@@ -280,25 +275,7 @@ impl KeyRemapper {
 
     /// Create a new uinput device supporting mouse events using the with a suffix.
     pub fn create_mouse_uinput(&self, name_suffix: &str) -> SyncedUinput {
-        let mut supported_events = EventsDescriptor::default();
-        supported_events.events.insert(
-            ec::EventType::EV_KEY,
-            vec![
-                ec::BTN_LEFT,
-                ec::BTN_MIDDLE,
-                ec::BTN_RIGHT,
-                ec::BTN_SIDE,
-                ec::BTN_EXTRA,
-                ec::BTN_BACK,
-                ec::BTN_FORWARD,
-            ],
-        );
-        supported_events.events.insert(
-            ec::EventType::EV_REL,
-            vec![ec::REL_X, ec::REL_Y, ec::REL_WHEEL, ec::REL_HWHEEL, ec::REL_WHEEL_HI_RES, ec::REL_HWHEEL_HI_RES],
-        );
-
-        return self.create_uinput(name_suffix, &supported_events);
+        return self.create_uinput(name_suffix, &EventsDescriptor::with_mouse_events());
     }
 
     fn add_uinput(&self, uinput: &SyncedUinput) {
