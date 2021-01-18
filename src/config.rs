@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     evdev::{self, EventsDescriptor},
-    KeyRemapper,
+    KeyRemapper, UINPUT_DEVICE_NAME_PREFIX,
 };
 
 /// Stores callbacks for `KeyRemapperCallbacks`.
@@ -69,6 +69,8 @@ pub struct KeyRemapperConfiguration {
     pub(crate) global_lock_name: String,
     pub(crate) uinput_device_name_suffix: String,
 
+    pub(crate) uinput_devices_prefix: String,
+
     pub(crate) callbacks: Arc<RwLock<KeyRemapperCallbacks>>,
 }
 
@@ -85,6 +87,7 @@ impl KeyRemapperConfiguration {
             uinput_events: EventsDescriptor::default(),
             global_lock_name: String::new(),
             uinput_device_name_suffix: String::new(),
+            uinput_devices_prefix: String::new(),
             callbacks: Arc::new(RwLock::new(KeyRemapperCallbacks::new())),
             device_name_regex_re: None,
             id_regex_re: None,
@@ -222,6 +225,12 @@ impl KeyRemapperConfiguration {
                 suffix
             }
         }
+        self.uinput_devices_prefix = {
+            let mut name = UINPUT_DEVICE_NAME_PREFIX.to_string();
+            name.push_str(&self.uinput_device_name_suffix);
+            name
+        };
+
         if self.uinput_events.is_empty() {
             self.uinput_events = EventsDescriptor::with_all_key_events();
         }
