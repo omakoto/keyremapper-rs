@@ -4,7 +4,7 @@ use std::{
     process::{self, Command},
     sync::Arc,
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use clap::{App, Arg};
@@ -568,6 +568,8 @@ fn main_loop(key_remapper: &KeyRemapper) {
 
     let mut rng = rand::thread_rng();
 
+    let start_time = Instant::now();
+
     'with_device_detection: loop {
         // First, find the target input devices.
         let input_lock = key_remapper.input.lock();
@@ -606,9 +608,11 @@ fn main_loop(key_remapper: &KeyRemapper) {
             if ready_fd == udev_fd {
                 let event = udev.next_event().expect("Unable to read udev events");
 
-                // Ignore events for uinput device creation.
-                if event.path.starts_with("/devices/virtual/") {
-                    continue 'event_loop;
+                // Ignore uinput device adds / removes for the first few seconds.
+                if Instant::now().duration_since(start_time) < Duration::from_secs(2) {
+                    if event.path.starts_with("/devices/virtual/") {
+                        continue 'event_loop;
+                    }
                 }
 
                 let msg = "Devices connected or disconnected";

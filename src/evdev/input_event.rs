@@ -33,6 +33,9 @@ pub struct InputEvent {
 
 impl Display for InputEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_syn_report() {
+            return write!(f, "{{InputEvent: time={}.{:06} ===== SYN_REPORT =====}}", self.time_sec, self.time_usec);
+        }
         let type_str = match ec::get_type_name(self.event_type as i32) {
             v if v.len() > 0 => v.to_string(),
             _ => format!("[Unknown type {}]", self.event_type as i32),

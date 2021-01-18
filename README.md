@@ -99,9 +99,6 @@ Getting the current window information doesn't seem to be supported by wayland b
 
 ## TODOs
 
-- Don't ignore udev device creation events
-- If not grabing, allow to read from other key remapper uinputs.
-
 - Better error handling (chain, stacktrace, etc?)
 - Handle libevdev_read_status_LIBEVDEV_READ_STATUS_SYNC properly.
 - Better APIs.

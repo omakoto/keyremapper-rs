@@ -214,7 +214,7 @@ impl EvdevDevice {
                 // uniq_id: String::from(CStr::from_ptr(native::libevdev_get_uniq(device)).to_str()?),
                 vendor: vendor,
                 product: product,
-                id_str: format!("{:04x} {:04x}", vendor, product),
+                id_str: format!("v{:04x} p{:04x}", vendor, product),
                 events: events,
                 grabbed: false,
             });

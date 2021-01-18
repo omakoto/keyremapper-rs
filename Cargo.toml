@@ -13,6 +13,10 @@ name = "myevtest"
 path = "examples/myevtest.rs"
 
 [[example]]
+name = "evsniff"
+path = "examples/evsniff/main.rs"
+
+[[example]]
 name = "keyboard-remapper"
 path = "examples/keyboard-remapper/main.rs"
 
