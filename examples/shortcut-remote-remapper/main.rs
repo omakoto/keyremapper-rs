@@ -15,6 +15,8 @@ const NAME: &str = "Shortcut-Remote-Remapper";
 const DEVICE_RE: &str = r#"^UGEE TABLET TABLET KT01$"#;
 const ID_RE: &str = "^";
 
+const KEY_LABELS: &'static [&str] = &["1", "2", "3", "4", "5", "6", "7", "8", "9", "Left", "Right", "Button"];
+
 const KEYS: &'static [i32] = &[
     ec::KEY_M,
     ec::KEY_P,
@@ -30,15 +32,13 @@ const KEYS: &'static [i32] = &[
     ec::KEY_LEFTSHIFT,
 ];
 
-const KEY_LABELS: &'static [&str] = &["1", "2", "3", "4", "5", "6", "7", "8", "9", "Left", "Right", "Button"];
-
-fn find_key_index(key: i32) -> i32 {
+fn find_key_index(key: i32) -> Option<usize> {
     for (i, k) in KEYS.iter().enumerate() {
         if *k == key {
-            return i as i32;
+            return Some(i);
         }
     }
-    return -1;
+    return None;
 }
 
 const HALF_TOGGLE: i32 = 0x1000;
@@ -132,15 +132,17 @@ impl Remapper {
         }
 
         // Find the key index.
-        let key_index = find_key_index(ev.code);
-        if key_index < 0 {
-            log::warn!("Unknown key detected: {}", ev);
-            return;
-        }
+        let key_index = match find_key_index(ev.code) {
+            Some(i) => i,
+            None => {
+                log::warn!("Unknown key detected: {}", ev);
+                return;
+                },
+        };
 
         // Find the "to" key.
         let mode = ALL_MODES[self.mode];
-        let (to_key, ..) = mode[key_index as usize];
+        let (to_key, ..) = mode[key_index];
 
         // Change mode?
         if to_key < 0 {
