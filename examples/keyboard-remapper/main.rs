@@ -20,6 +20,11 @@ const NAME: &str = "Keyboard remapper";
 const DEVICE_RE: &str = r#"^(AT Translated Set 2 keyboard|Topre Corporation Realforce|P. I. Engineering XK-16 HID)"#;
 const ID_RE: &str = "^";
 
+// Mouse wheel simuation speed.
+const WHEEL_NORMAL_SCROLL_INTERVAL: Duration = Duration::from_millis(20);
+const WHEEL_FAST_SCROLL_INTERVAL: Duration = Duration::from_millis(5);
+const WHEEL_FAST_SCROLL_DELAY: Duration = Duration::from_millis(100);
+
 // ESC + These keys will generate SHIFT+ALT+CTRL+META+[THE KEY]. I launch apps using them -- e.g. ESC+ENTER to launch
 // Chrome.
 static VERSATILE_KEYS: &[i32] = &[
@@ -79,17 +84,17 @@ static MODIFIER_KEYS: &[i32] = &[
     ec::KEY_ESC, // In this remapper, ESC is used as a modifier.
 ];
 
-const WHEEL_REPEAT_DELAY_NORMAL: Duration = Duration::from_millis(20);
-const WHEEL_REPEAT_DELAY_FAST: Duration = Duration::from_millis(5);
-const WHEEL_MAKE_FAST_AFTER_THIS_MANY_EVENTS: u32 = 10;
-
+/// Worker thread that sends mouse wheel events repeatedly.
 mod wheeler {
-    use std::{cell::RefCell, sync::Arc, thread};
+    use std::{
+        cell::RefCell,
+        sync::Arc,
+        thread,
+        time::{Duration, Instant},
+    };
 
-    use keyremapper::evdev::{InputEvent, ec, uinput::SyncedUinput};
+    use keyremapper::evdev::{ec, uinput::SyncedUinput, InputEvent};
     use parking_lot::{Condvar, Mutex};
-
-    use crate::{WHEEL_MAKE_FAST_AFTER_THIS_MANY_EVENTS, WHEEL_REPEAT_DELAY_FAST, WHEEL_REPEAT_DELAY_NORMAL};
 
     #[derive(Debug)]
     struct Inner {
@@ -102,10 +107,14 @@ mod wheeler {
         inner: Arc<Mutex<RefCell<Inner>>>,
         uinput: Arc<SyncedUinput>,
         cond: Arc<Condvar>,
+
+        normal_scroll_internal: Duration,
+        fast_scroll_interval: Duration,
+        first_scroll_delay: Duration,
     }
 
     impl Wheeler {
-        pub fn new(uinput: SyncedUinput) -> Wheeler {
+        pub fn new(uinput: SyncedUinput, normal_scroll_internal: Duration, fast_scroll_interval: Duration, first_scroll_delay: Duration) -> Wheeler {
             let inner = Inner {
                 vwheel_speed: 0,
                 hwheel_speed: 0,
@@ -115,6 +124,9 @@ mod wheeler {
                 inner: Arc::new(Mutex::new(RefCell::new(inner))),
                 uinput: Arc::new(uinput),
                 cond: Arc::new(Condvar::new()),
+                normal_scroll_internal,
+                fast_scroll_interval,
+                first_scroll_delay,
             };
         }
 
@@ -163,7 +175,9 @@ mod wheeler {
         fn thread_main(&self) {
             log::info!("Wheeler thread started...");
 
-            let mut consecutive_event_count = 0;
+            let zero_instant: Instant = Instant::now();
+
+            let mut last_started: Instant = zero_instant;
             loop {
                 let mut v = 0;
                 let mut h = 0;
@@ -176,27 +190,33 @@ mod wheeler {
                     }
                     if v == 0 && h == 0 {
                         // log::debug!("Wheel stop");
-                        consecutive_event_count = 0;
+                        last_started = zero_instant;
                         self.cond.wait(&mut inner);
                     } else {
+                        if last_started == zero_instant {
+                            last_started = Instant::now();
+                        }
                         break;
                     }
                 }
-                consecutive_event_count += 1;
                 // log::debug!("WHEEL! {} {} @ {}", v, h, consecutive_event_count);
                 if v != 0 {
                     self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_WHEEL, v)).unwrap();
-                    self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_WHEEL_HI_RES, v * 120)).unwrap();
+                    self.uinput
+                        .send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_WHEEL_HI_RES, v * 120))
+                        .unwrap();
                 }
                 if h != 0 {
                     self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_HWHEEL, h)).unwrap();
-                    self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_HWHEEL_HI_RES, h * 120)).unwrap();
+                    self.uinput
+                        .send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_HWHEEL_HI_RES, h * 120))
+                        .unwrap();
                 }
 
-                let wait = if consecutive_event_count >= WHEEL_MAKE_FAST_AFTER_THIS_MANY_EVENTS {
-                    WHEEL_REPEAT_DELAY_FAST
+                let wait = if Instant::now().duration_since(last_started) >= self.first_scroll_delay {
+                    self.fast_scroll_interval
                 } else {
-                    WHEEL_REPEAT_DELAY_NORMAL
+                    self.normal_scroll_internal
                 };
                 thread::sleep(wait);
             }
@@ -204,10 +224,15 @@ mod wheeler {
     }
 }
 
+/// `State` stores the internal state.
 #[derive(Debug, Default)]
 struct State {
     pending_esc_pressed: bool,
     wheeler: Option<wheeler::Wheeler>,
+
+    normal_scroll_internal: Duration,
+    fast_scroll_interval: Duration,
+    first_scroll_delay: Duration,
 }
 
 impl State {}
@@ -217,6 +242,7 @@ lazy_static::lazy_static! {
     // static ref STATE: State = State::default();
 }
 
+/// Entry point.
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -235,11 +261,29 @@ fn main() -> Result<(), Box<dyn Error>> {
         .set_grab(true)
         .set_write_to_uinput(true);
 
+    config.on_init_args(|app| {
+        return app;
+    });
+
+    config.on_args_parsed(|matches| {
+        let lock = STATE.lock();
+        let mut state = lock.borrow_mut();
+
+        state.normal_scroll_internal = WHEEL_NORMAL_SCROLL_INTERVAL;
+        state.fast_scroll_interval = WHEEL_FAST_SCROLL_INTERVAL;
+        state.first_scroll_delay = WHEEL_FAST_SCROLL_DELAY;
+    });
+
     config.on_start(|km| {
         let lock = STATE.lock();
         let mut state = lock.borrow_mut();
 
-        let wheeler = wheeler::Wheeler::new(km.create_mouse_uinput("-wheel"));
+        let wheeler = wheeler::Wheeler::new(
+            km.create_mouse_uinput("-wheel"),
+            state.normal_scroll_internal,
+            state.fast_scroll_interval,
+            state.first_scroll_delay,
+        );
         wheeler.start();
         state.wheeler = Some(wheeler);
     });
