@@ -51,7 +51,7 @@ See also:
  
 Note: all the following samples will _remap only certain kinds of keyboards_ specified
 by the regex `DEVICE_RE` in them. In order to use them with your input devices, use the `--match-device-name` option and provide a regex that
-matches your input device. Find the device name using `evtest`.
+matches your input device. Find the device name using `evtest(1)` or the sample `evsnif`.
 
 If you need to disdistinguish different devices with the same name,
 provide a regex mathing the vendor/product ID with the `--match-id` option.
@@ -70,6 +70,8 @@ provide a regex mathing the vendor/product ID with the `--match-id` option.
 - [trackpoint-speedup](blob/main/examples/trackpoint-speedup/main.rs) Speed up Thinkpad trackpoint.
    I can never figure out how to easily do it.
 
+- [evsniff](blob/main/examples/evsniff/main.rs) Kind of like evtest(1) but reads all the events at once.
+  Use this to figure out the device name and its vendor/product IDs.
 
 ## Does it support creating different mappings for different apps?
 
@@ -100,7 +102,6 @@ Getting the current window information doesn't seem to be supported by wayland b
 ## TODOs
 
 - Better error handling (chain, stacktrace, etc?)
-- Handle libevdev_read_status_LIBEVDEV_READ_STATUS_SYNC properly.
 - Better APIs.
 
 ## Links

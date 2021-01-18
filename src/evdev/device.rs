@@ -306,6 +306,11 @@ impl EvdevDevice {
                     return Ok(InputEvent::from_native_input_event(&ie));
                 }
                 if status == native::libevdev_read_status_LIBEVDEV_READ_STATUS_SYNC as i32 {
+                    // See https://www.freedesktop.org/software/libevdev/doc/latest/syn_dropped.html
+                    if sync {
+                        return Ok(InputEvent::from_native_input_event(&ie));
+                    }
+                    log::warn!("LIBEVDEV_READ_STATUS_SYNC detected!");
                     return Err(EvdevError::InternalEventDropped);
                 }
                 panic!("libevdev_next_event returned unknown result: {}", status)
@@ -316,12 +321,25 @@ impl EvdevDevice {
     pub fn next_events(&self) -> Result<Vec<InputEvent>, EvdevError> {
         let mut ret = vec![];
 
+        let mut sync = false;
+
         while self.has_event_pending()? {
-            match self.next_single_event(false) {
-                Ok(ie) => ret.push(ie),
-                Err(EvdevError::InternalEventDropped) => todo!(),
+            match self.next_single_event(sync) {
+                Ok(ie) => {
+                    ret.push(ie);
+                }
+                Err(EvdevError::InternalEventDropped) => {
+                    log::warn!("Starting to sync...");
+                    sync = true;
+                }
+                Err(EvdevError::ErrnoError(e)) if sync && e == libc::EAGAIN => {
+                    break;
+                }
                 Err(e) => return Err(e),
             };
+        }
+        if sync {
+            log::warn!("Sync done.");
         }
         Ok(ret)
     }
