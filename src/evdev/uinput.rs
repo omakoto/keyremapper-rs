@@ -7,10 +7,10 @@ use std::{
 
 use parking_lot::{ReentrantMutex, ReentrantMutexGuard, RwLock};
 
-use crate::native::c_string_from_str;
+use crate::native::{self, c_string_from_str};
 
 use super::{ec, EvdevError, EventsDescriptor};
-use super::{native, InputEvent, InputEventTracker};
+use super::{InputEvent, InputEventTracker};
 
 #[derive(Debug, Clone, Copy)]
 struct UinputPtr {
