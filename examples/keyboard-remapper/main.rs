@@ -363,7 +363,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut ev = &mut ev.clone();
 
         // Special for the thinkpad keyboard. Use INS/DEL as PAGEUP/DOWN, unless caps is pressed.
-        if is_thinkpad && !km.is_key_pressed(ec::KEY_CAPSLOCK) {
+        if is_thinkpad && !km.is_key_down(ec::KEY_CAPSLOCK) {
             match ev.code {
                 ec::KEY_INSERT => ev.code = ec::KEY_PAGEUP,
                 ec::KEY_DELETE => ev.code = ec::KEY_PAGEDOWN,
@@ -412,7 +412,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if km.key_pressed(ev, ec::KEY_CAPSLOCK, "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
 
             // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
-            _ if ev.is_any_key(&[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C]) && km.is_esc_pressed() => {
+            _ if ev.is_any_key(&[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C]) && km.is_esc_down() => {
                 let speed = match 0 {
                     _ if ev.is_key_released_event() => 0,
                     _ if ev.is_any_key_pressed(&[ec::KEY_K, ec::KEY_C]) => 1,
@@ -421,7 +421,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 };
                 state.wheeler.as_mut().unwrap().set_vwheel(speed);
             }
-            _ if ev.is_any_key(&[ec::KEY_L, ec::KEY_H]) && km.is_esc_pressed() => {
+            _ if ev.is_any_key(&[ec::KEY_L, ec::KEY_H]) && km.is_esc_down() => {
                 let speed = match 0 {
                     _ if ev.is_key_released_event() => 0,
                     _ if ev.is_any_key_pressed(&[ec::KEY_L]) => 1,

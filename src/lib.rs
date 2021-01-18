@@ -345,35 +345,35 @@ impl KeyRemapper {
         return tracker.borrow().key_state(code);
     }
 
-    pub fn is_key_pressed(&self, code: i32) -> bool {
+    pub fn is_key_down(&self, code: i32) -> bool {
         self.get_in_key_state(code) > 0
     }
 
-    pub fn is_alt_pressed(&self) -> bool {
-        self.is_key_pressed(ec::KEY_LEFTALT) || self.is_key_pressed(ec::KEY_RIGHTALT)
+    pub fn is_alt_down(&self) -> bool {
+        self.is_key_down(ec::KEY_LEFTALT) || self.is_key_down(ec::KEY_RIGHTALT)
     }
 
-    pub fn is_control_pressed(&self) -> bool {
-        self.is_key_pressed(ec::KEY_LEFTCTRL) || self.is_key_pressed(ec::KEY_RIGHTCTRL)
+    pub fn is_control_down(&self) -> bool {
+        self.is_key_down(ec::KEY_LEFTCTRL) || self.is_key_down(ec::KEY_RIGHTCTRL)
     }
 
-    pub fn is_shift_pressed(&self) -> bool {
-        self.is_key_pressed(ec::KEY_LEFTSHIFT) || self.is_key_pressed(ec::KEY_RIGHTSHIFT)
+    pub fn is_shift_down(&self) -> bool {
+        self.is_key_down(ec::KEY_LEFTSHIFT) || self.is_key_down(ec::KEY_RIGHTSHIFT)
     }
 
-    pub fn is_winkey_pressed(&self) -> bool {
-        self.is_key_pressed(ec::KEY_LEFTMETA) || self.is_key_pressed(ec::KEY_RIGHTMETA)
+    pub fn is_winkey_down(&self) -> bool {
+        self.is_key_down(ec::KEY_LEFTMETA) || self.is_key_down(ec::KEY_RIGHTMETA)
     }
 
-    pub fn is_esc_pressed(&self) -> bool {
-        self.is_key_pressed(ec::KEY_ESC)
+    pub fn is_esc_down(&self) -> bool {
+        self.is_key_down(ec::KEY_ESC)
     }
 
     pub fn get_out_key_state(&self, code: i32) -> i32 {
         self.uinput.as_ref().unwrap().key_state(code)
     }
 
-    pub fn is_out_key_pressed(&self, code: i32) -> bool {
+    pub fn is_out_key_down(&self, code: i32) -> bool {
         self.get_out_key_state(code) > 0
     }
 
@@ -387,7 +387,7 @@ impl KeyRemapper {
     fn save_out_modifier_state(&self) -> ModifierState {
         let mut ret = [false; MODIFIER_COUNT];
         for (i, key) in MODIFIER_KEYS.iter().enumerate() {
-            ret[i] = self.is_out_key_pressed(*key);
+            ret[i] = self.is_out_key_down(*key);
         }
         ret
     }
@@ -463,23 +463,23 @@ impl KeyRemapper {
         let win = modifiers.contains('w');
         let esc = modifiers.contains('e'); // Allow ESC to be used as a modifier.
 
-        if self.is_alt_pressed() != alt && (alt || !ignore_other_modifiers) {
+        if self.is_alt_down() != alt && (alt || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_control_pressed() != ctrl && (ctrl || !ignore_other_modifiers) {
+        if self.is_control_down() != ctrl && (ctrl || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_shift_pressed() != shift && (shift || !ignore_other_modifiers) {
+        if self.is_shift_down() != shift && (shift || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_winkey_pressed() != win && (win || !ignore_other_modifiers) {
+        if self.is_winkey_down() != win && (win || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_esc_pressed() != esc && (esc || !ignore_other_modifiers) {
+        if self.is_esc_down() != esc && (esc || !ignore_other_modifiers) {
             return false;
         }
 
