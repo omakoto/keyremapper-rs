@@ -22,7 +22,7 @@ const DEVICE_RE: &str = r#"^(AT Translated Set 2 keyboard|Topre Corporation Real
 const ID_RE: &str = "^";
 
 // Simulated mouse wheel speed.
-const NORMAL_SCROLL_INTERNAL: &str = "20";
+const NORMAL_SCROLL_INTERNAL: &str = "30";
 const FAST_SCROLL_INTERVAL: &str = "5";
 const FIRST_SCROLL_DELAY: &str = "100";
 
@@ -162,6 +162,7 @@ mod wheeler {
             });
         }
 
+        /// Start the worker thread.
         pub fn start(&self) {
             let clone = self.clone();
 
@@ -173,6 +174,7 @@ mod wheeler {
                 .expect("Unable to wheeler thread");
         }
 
+        /// Entry point of the thread.
         fn thread_main(&self) {
             log::info!("Wheeler thread started...");
 
@@ -346,12 +348,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // For x-keys. Convert to Shift+Ctrl+[number]
         if is_xkeys {
-            // Special casing the first two keys.
-            match ev {
-                // _ if km.key_pressed(ev, &[ec::KEY_1], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
-                // _ if km.key_pressed(ev, &[ec::KEY_2], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
-                _ if km.key_pressed(ev, &[ec::KEY_1], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
-                _ if km.key_pressed(ev, &[ec::KEY_2], &[1], "") => km.press_key(ec::KEY_LEFT, "a"),
+            match 0 {
+                // Special casing the first two keys -- convert to ALT+left / right (i.e. back / forward)
+                _ if km.key_pressed(ev, ec::KEY_1, "") => km.press_key(ec::KEY_LEFT, "a"),
+                _ if km.key_pressed(ev, ec::KEY_2, "") => km.press_key(ec::KEY_RIGHT, "a"),
+
+                // Send the other keys with alt+ctrl+shift+meta.
                 _ if ev.value == 1 => km.press_key(ev.value, "sacw"),
                 _ => log::warn!("Unexpected event {}", ev),
             }
@@ -369,7 +371,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        // Special ESC handling: Don't send "ESC-press" on key-down, but instead send it on key-*up*, unless
+        // Special handling for ESC: Don't send "ESC-press" on key-down, but instead send it on key-*up*, unless
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
         if ev.code == ec::KEY_ESC {
@@ -378,7 +380,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             if ev.value == 0 && state.pending_esc_pressed {
                 state.pending_esc_pressed = false;
-                km.press_key(ec::KEY_ESC, "");
+                km.press_key(ec::KEY_ESC, "*");
             }
             return;
         }
@@ -391,50 +393,46 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         match 0 {
             // ESC or shift + backspace -> delete
-            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "e") => km.press_key(ec::KEY_DELETE, ""),
-            _ if km.key_pressed(ev, &[ec::KEY_BACKSPACE], &[1, 2], "s") => km.press_key(ec::KEY_DELETE, ""),
+            _ if km.key_pressed(ev, ec::KEY_BACKSPACE, "e") => km.press_key(ec::KEY_DELETE, ""),
+            _ if km.key_pressed(ev, ec::KEY_BACKSPACE, "s") => km.press_key(ec::KEY_DELETE, ""),
 
             // See VERSATILE_KEYS.
-            _ if km.key_pressed(ev, VERSATILE_KEYS, &[1, 2], "e") => km.press_key(ev.code, "acsw"),
+            _ if km.any_key_pressed(ev, VERSATILE_KEYS, "e") => km.press_key(ev.code, "acsw"),
 
             // ESC + home/end -> ATL+Left/Right (back / forward)
-            _ if km.key_pressed(ev, &[ec::KEY_HOME], &[1, 2], "e") => km.press_key(ec::KEY_LEFT, "a"),
-            _ if km.key_pressed(ev, &[ec::KEY_END], &[1, 2], "e") => km.press_key(ec::KEY_RIGHT, "a"),
+            _ if km.key_pressed(ev, ec::KEY_HOME, "e") => km.press_key(ec::KEY_LEFT, "a"),
+            _ if km.key_pressed(ev, ec::KEY_END, "e") => km.press_key(ec::KEY_RIGHT, "a"),
 
             // ESC + Pageup -> ctrl + pageup (prev tab)
             // ESC + Pagedown -> ctrl + pagedown (next tab)
             // (meaning ESC + ins/del act as them too on thinkpad.)
-            _ if km.key_pressed(ev, &[ec::KEY_PAGEUP, ec::KEY_PAGEDOWN], &[1, 2], "e") => km.press_key(ev.code, "c"),
+            _ if km.any_key_pressed(ev, &[ec::KEY_PAGEUP, ec::KEY_PAGEDOWN], "e") => km.press_key(ev.code, "c"),
 
             // ESC + caps lock -> caps lock, in case I ever need it.
-            _ if km.key_pressed(ev, &[ec::KEY_CAPSLOCK], &[1, 2], "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
+            _ if km.key_pressed(ev, ec::KEY_CAPSLOCK, "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
 
             // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
-            _ if km.key_pressed(ev, &[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], &[0, 1, 2], "e*") => {
-                if ev.is_key_released_event() {
-                    state.wheeler.as_mut().unwrap().set_vwheel(0);
-                } else if ev.is_key_pressed_event() {
-                    if [ec::KEY_K, ec::KEY_C].contains(&ev.code) {
-                        state.wheeler.as_mut().unwrap().set_vwheel(1);
-                    } else if [ec::KEY_J, ec::KEY_SPACE].contains(&ev.code) {
-                        state.wheeler.as_mut().unwrap().set_vwheel(-1);
-                    }
-                }
+            _ if ev.is_any_key(&[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C]) && km.is_esc_pressed() => {
+                let speed = match 0 {
+                    _ if ev.is_key_released_event() => 0,
+                    _ if ev.is_any_key_pressed(&[ec::KEY_K, ec::KEY_C]) => 1,
+                    _ if ev.is_any_key_pressed(&[ec::KEY_J, ec::KEY_SPACE]) => -1,
+                    _ => return,
+                };
+                state.wheeler.as_mut().unwrap().set_vwheel(speed);
             }
-            _ if km.key_pressed(ev, &[ec::KEY_L, ec::KEY_H], &[0, 1, 2], "e*") => {
-                if ev.is_key_released_event() {
-                    state.wheeler.as_mut().unwrap().set_hwheel(0);
-                } else if ev.is_key_pressed_event() {
-                    if [ec::KEY_L].contains(&ev.code) {
-                        state.wheeler.as_mut().unwrap().set_hwheel(1);
-                    } else if [ec::KEY_H].contains(&ev.code) {
-                        state.wheeler.as_mut().unwrap().set_hwheel(-1);
-                    }
-                }
+            _ if ev.is_any_key(&[ec::KEY_L, ec::KEY_H]) && km.is_esc_pressed() => {
+                let speed = match 0 {
+                    _ if ev.is_key_released_event() => 0,
+                    _ if ev.is_any_key_pressed(&[ec::KEY_L]) => 1,
+                    _ if ev.is_any_key_pressed(&[ec::KEY_H]) => -1,
+                    _ => return,
+                };
+                state.wheeler.as_mut().unwrap().set_hwheel(speed);
             }
 
             // ESC + other alphabet -> ctrl + shift + the key.
-            _ if km.key_pressed(ev, ALPHABET_KEYS, &[1, 2], "e") => km.press_key(ev.code, "cs"),
+            _ if km.any_key_pressed(ev, ALPHABET_KEYS, "e") => km.press_key(ev.code, "cs"),
 
             // Don't use capslock alone.
             _ if ev.code == ec::KEY_CAPSLOCK => {}

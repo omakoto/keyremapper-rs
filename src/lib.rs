@@ -524,8 +524,34 @@ impl KeyRemapper {
         }
     }
 
-    pub fn key_pressed(&self, event: &evdev::InputEvent, keys: &[i32], values: &[i32], modifiers: &str) -> bool {
-        (event.event_type == ec::EventType::EV_KEY) && keys.contains(&event.code) && values.contains(&event.value) && self.are_modifiers_pressed(modifiers)
+    /// Return true if the given event is of the given key and value is 1 (pressed) or 2 (repeat).
+    pub fn key_down(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
+        return event.is_key_down(key) && self.are_modifiers_pressed(modifiers);
+    }
+
+    /// Return true if the given event is of the given key and value is 1 (pressed), but not 2 (repeat).
+    pub fn key_pressed(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
+        return event.is_key_pressed(key) && self.are_modifiers_pressed(modifiers);
+    }
+
+    /// Return true if the given event is of the given key and value is 0 (released).
+    pub fn key_released(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
+        return event.is_key_released(key) && self.are_modifiers_pressed(modifiers);
+    }
+
+    /// Return true if the given event is any of the given keys and value is 1 (pressed) or 2 (repeat).
+    pub fn any_key_down(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
+        return event.is_any_key_down(keys) && self.are_modifiers_pressed(modifiers);
+    }
+
+    /// Return true if the given event is any of the given keys and value is 1 (pressed), but not 2 (repeat).
+    pub fn any_key_pressed(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
+        return event.is_any_key_pressed(keys) && self.are_modifiers_pressed(modifiers);
+    }
+
+    /// Return true if the given event is any of the given keys and value is 0 (released).
+    pub fn any_key_released(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
+        return event.is_any_key_released(keys) && self.are_modifiers_pressed(modifiers);
     }
 
     // TODO Support changing the tray icon.
