@@ -14,9 +14,9 @@ impl KeyEventType {
     #[inline]
     pub fn match_event(&self, ev: &InputEvent) -> bool {
         return match self {
-            KeyEventType::Pressed => ev.is_key_pressed_event(),
-            KeyEventType::Released => ev.is_key_released_event(),
-            KeyEventType::Down => ev.is_key_down_event(),
+            KeyEventType::Pressed => ev.is_key_down_event(),
+            KeyEventType::Released => ev.is_key_up_event(),
+            KeyEventType::Down => ev.is_key_on_event(),
         };
     }
 }
@@ -221,55 +221,55 @@ impl InputEvent {
 
     /// Return true if it's a key event of the given key and the value is 1.
     #[inline]
-    pub fn is_key_pressed(&self, key: i32) -> bool {
+    pub fn is_key_down(&self, key: i32) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value == 1 && key == self.code;
     }
 
     /// Return true if it's a key event of the given key and the value is 0.
     #[inline]
-    pub fn is_key_released(&self, key: i32) -> bool {
+    pub fn is_key_up(&self, key: i32) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value == 0 && key == self.code;
     }
 
     /// Return true if it's a key event of the given key and the value is 1 or 2.
     #[inline]
-    pub fn is_key_down(&self, key: i32) -> bool {
+    pub fn is_key_on(&self, key: i32) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value > 0 && key == self.code;
     }
 
     /// Return true if it's a key event of any the given keys and the value is 1.
     #[inline]
-    pub fn is_any_key_pressed(&self, keys: &[i32]) -> bool {
+    pub fn is_any_key_down(&self, keys: &[i32]) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value == 1 && keys.contains(&self.code);
     }
 
     /// Return true if it's a key event of any the given keys and the value is 0.
     #[inline]
-    pub fn is_any_key_released(&self, keys: &[i32]) -> bool {
+    pub fn is_any_key_up(&self, keys: &[i32]) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value == 0 && keys.contains(&self.code);
     }
 
     /// Return true if it's a key event of any the given keys and the value is 1 or 2.
     #[inline]
-    pub fn is_any_key_down(&self, keys: &[i32]) -> bool {
+    pub fn is_any_key_on(&self, keys: &[i32]) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value > 0 && keys.contains(&self.code);
     }
 
     /// Return true if it's a key event and the value is 1.
     #[inline]
-    pub fn is_key_pressed_event(&self) -> bool {
+    pub fn is_key_down_event(&self) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value == 1;
     }
 
     /// Return true if it's a key event and the value is 1 or 2.
     #[inline]
-    pub fn is_key_down_event(&self) -> bool {
+    pub fn is_key_on_event(&self) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value > 0;
     }
 
     /// Return true if it's a key event and the value is 0.
     #[inline]
-    pub fn is_key_released_event(&self) -> bool {
+    pub fn is_key_up_event(&self) -> bool {
         return self.event_type == ec::EventType::EV_KEY && self.value == 0;
     }
 

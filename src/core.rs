@@ -351,35 +351,35 @@ impl KeyRemapper {
         return tracker.borrow().key_state(code);
     }
 
-    pub fn is_key_down(&self, code: i32) -> bool {
+    pub fn is_key_on(&self, code: i32) -> bool {
         self.get_in_key_state(code) > 0
     }
 
-    pub fn is_alt_down(&self) -> bool {
-        self.is_key_down(ec::KEY_LEFTALT) || self.is_key_down(ec::KEY_RIGHTALT)
+    pub fn is_alt_on(&self) -> bool {
+        self.is_key_on(ec::KEY_LEFTALT) || self.is_key_on(ec::KEY_RIGHTALT)
     }
 
-    pub fn is_ctrl_down(&self) -> bool {
-        self.is_key_down(ec::KEY_LEFTCTRL) || self.is_key_down(ec::KEY_RIGHTCTRL)
+    pub fn is_ctrl_on(&self) -> bool {
+        self.is_key_on(ec::KEY_LEFTCTRL) || self.is_key_on(ec::KEY_RIGHTCTRL)
     }
 
-    pub fn is_shift_down(&self) -> bool {
-        self.is_key_down(ec::KEY_LEFTSHIFT) || self.is_key_down(ec::KEY_RIGHTSHIFT)
+    pub fn is_shift_on(&self) -> bool {
+        self.is_key_on(ec::KEY_LEFTSHIFT) || self.is_key_on(ec::KEY_RIGHTSHIFT)
     }
 
-    pub fn is_winkey_down(&self) -> bool {
-        self.is_key_down(ec::KEY_LEFTMETA) || self.is_key_down(ec::KEY_RIGHTMETA)
+    pub fn is_winkey_on(&self) -> bool {
+        self.is_key_on(ec::KEY_LEFTMETA) || self.is_key_on(ec::KEY_RIGHTMETA)
     }
 
-    pub fn is_esc_down(&self) -> bool {
-        self.is_key_down(ec::KEY_ESC)
+    pub fn is_esc_on(&self) -> bool {
+        self.is_key_on(ec::KEY_ESC)
     }
 
     pub fn get_out_key_state(&self, code: i32) -> i32 {
         self.uinput.as_ref().unwrap().key_state(code)
     }
 
-    pub fn is_out_key_down(&self, code: i32) -> bool {
+    pub fn is_out_key_on(&self, code: i32) -> bool {
         self.get_out_key_state(code) > 0
     }
 
@@ -393,7 +393,7 @@ impl KeyRemapper {
     fn save_out_modifier_state(&self) -> ModifierState {
         let mut ret = [false; MODIFIER_COUNT];
         for (i, key) in MODIFIER_KEYS.iter().enumerate() {
-            ret[i] = self.is_out_key_down(*key);
+            ret[i] = self.is_out_key_on(*key);
         }
         ret
     }
@@ -458,7 +458,7 @@ impl KeyRemapper {
     /// - `'*'` Add this to ignore the modifiers that are not specified. e.g. `"ac"` normally means both Alt and Ctrl
     ///   must be pressed *and* the other modifiers are rnot pressed, while `"ac*"` means both Alt and Ctrl
     ///   must be pressed but don't care if the other modifiers are pressed.
-    pub fn are_modifiers_pressed(&self, modifiers: &str) -> bool {
+    pub fn are_modifiers_on(&self, modifiers: &str) -> bool {
         validate_modifiers(modifiers, "acswe*");
 
         let ignore_other_modifiers = modifiers.contains('*');
@@ -469,23 +469,23 @@ impl KeyRemapper {
         let win = modifiers.contains('w');
         let esc = modifiers.contains('e'); // Allow ESC to be used as a modifier.
 
-        if self.is_alt_down() != alt && (alt || !ignore_other_modifiers) {
+        if self.is_alt_on() != alt && (alt || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_ctrl_down() != ctrl && (ctrl || !ignore_other_modifiers) {
+        if self.is_ctrl_on() != ctrl && (ctrl || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_shift_down() != shift && (shift || !ignore_other_modifiers) {
+        if self.is_shift_on() != shift && (shift || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_winkey_down() != win && (win || !ignore_other_modifiers) {
+        if self.is_winkey_on() != win && (win || !ignore_other_modifiers) {
             return false;
         }
 
-        if self.is_esc_down() != esc && (esc || !ignore_other_modifiers) {
+        if self.is_esc_on() != esc && (esc || !ignore_other_modifiers) {
             return false;
         }
 
@@ -494,38 +494,38 @@ impl KeyRemapper {
 
     /// Return true if the given event is of the given key and value is 1 (pressed) or 2 (repeat).
     #[inline]
-    pub fn key_down(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
-        return event.is_key_down(key) && self.are_modifiers_pressed(modifiers);
+    pub fn key_on(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
+        return event.is_key_on(key) && self.are_modifiers_on(modifiers);
     }
 
     /// Return true if the given event is of the given key and value is 1 (pressed), but not 2 (repeat).
     #[inline]
-    pub fn key_pressed(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
-        return event.is_key_pressed(key) && self.are_modifiers_pressed(modifiers);
+    pub fn key_down(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
+        return event.is_key_down(key) && self.are_modifiers_on(modifiers);
     }
 
     /// Return true if the given event is of the given key and value is 0 (released).
     #[inline]
-    pub fn key_released(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
-        return event.is_key_released(key) && self.are_modifiers_pressed(modifiers);
+    pub fn key_up(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
+        return event.is_key_up(key) && self.are_modifiers_on(modifiers);
     }
 
     /// Return true if the given event is any of the given keys and value is 1 (pressed) or 2 (repeat).
     #[inline]
-    pub fn any_key_down(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
-        return event.is_any_key_down(keys) && self.are_modifiers_pressed(modifiers);
+    pub fn any_key_on(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
+        return event.is_any_key_on(keys) && self.are_modifiers_on(modifiers);
     }
 
     /// Return true if the given event is any of the given keys and value is 1 (pressed), but not 2 (repeat).
     #[inline]
-    pub fn any_key_pressed(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
-        return event.is_any_key_pressed(keys) && self.are_modifiers_pressed(modifiers);
+    pub fn any_key_down(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
+        return event.is_any_key_down(keys) && self.are_modifiers_on(modifiers);
     }
 
     /// Return true if the given event is any of the given keys and value is 0 (released).
     #[inline]
-    pub fn any_key_released(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
-        return event.is_any_key_released(keys) && self.are_modifiers_pressed(modifiers);
+    pub fn any_key_up(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
+        return event.is_any_key_up(keys) && self.are_modifiers_on(modifiers);
     }
 
     // TODO Support changing the tray icon.
@@ -660,11 +660,11 @@ fn main_loop(key_remapper: &KeyRemapper) {
                     tracker.borrow_mut().on_event_sent(ev);
                 }
                 ev.set_modifiers(
-                    key_remapper.is_alt_down(),
-                    key_remapper.is_ctrl_down(),
-                    key_remapper.is_shift_down(),
-                    key_remapper.is_winkey_down(),
-                    key_remapper.is_esc_down(),
+                    key_remapper.is_alt_on(),
+                    key_remapper.is_ctrl_on(),
+                    key_remapper.is_shift_on(),
+                    key_remapper.is_winkey_on(),
+                    key_remapper.is_esc_on(),
                 );
                 (*callbacks.on_event)(&key_remapper, &device, ev);
             }
