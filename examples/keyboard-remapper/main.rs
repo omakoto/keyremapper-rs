@@ -84,6 +84,10 @@ static MODIFIER_KEYS: &[i32] = &[
     ec::KEY_ESC, // In this remapper, ESC is used as a modifier.
 ];
 
+const ARG_NORMAL_SCROLL_INTERVAL: &str = "normal_scroll_internal";
+const ARG_FAST_SCROLL_INTERVAL: &str = "fast_scroll_interval";
+const ARG_FIRST_SCROLL_DELAY: &str = "first_scroll_delay";
+
 /// Worker thread that sends mouse wheel events repeatedly.
 mod wheeler;
 
@@ -128,7 +132,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     config.on_init_args(|app| {
         return app
             .arg(
-                Arg::with_name("normal_scroll_internal")
+                Arg::with_name(ARG_NORMAL_SCROLL_INTERVAL)
                     .long("normal-scroll-interval-ms")
                     .value_name("MILLIS")
                     .default_value(NORMAL_SCROLL_INTERNAL)
@@ -136,7 +140,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("fast_scroll_interval")
+                Arg::with_name(ARG_FAST_SCROLL_INTERVAL)
                     .long("fast-scroll-interval-ms")
                     .value_name("MILLIS")
                     .default_value(FAST_SCROLL_INTERVAL)
@@ -144,7 +148,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .takes_value(true),
             )
             .arg(
-                Arg::with_name("first_scroll_delay")
+                Arg::with_name(ARG_FIRST_SCROLL_DELAY)
                     .long("fast-scroll-delay-ms")
                     .value_name("MILLIS")
                     .default_value(FIRST_SCROLL_DELAY)
@@ -163,9 +167,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             return Duration::from_millis(val.max(1));
         };
 
-        state.normal_scroll_internal = get_arg("normal_scroll_internal");
-        state.fast_scroll_interval = get_arg("fast_scroll_interval");
-        state.first_scroll_delay = get_arg("first_scroll_delay");
+        state.normal_scroll_internal = get_arg(ARG_NORMAL_SCROLL_INTERVAL);
+        state.fast_scroll_interval = get_arg(ARG_FAST_SCROLL_INTERVAL);
+        state.first_scroll_delay = get_arg(ARG_FIRST_SCROLL_DELAY);
     });
 
     config.on_start(|km| {

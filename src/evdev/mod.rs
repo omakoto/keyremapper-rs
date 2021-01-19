@@ -1,5 +1,5 @@
 use glob::{self, PatternError};
-use std::{error::Error, os::unix::io::AsRawFd};
+use std::error::Error;
 use std::{fmt, str::Utf8Error};
 
 pub mod device;

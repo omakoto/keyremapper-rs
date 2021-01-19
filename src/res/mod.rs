@@ -45,7 +45,7 @@ fn extract_resources(file_path: &PathBuf, res_path: &str, resource_fetcher: &Res
         Err(e) => {
             #[allow(unused_must_use)]
             fs::remove_file(file_path);
-            panic!("Unable to write resouce {} to {:?}", res_path, file_path)
+            panic!("Unable to write resouce {} to {:?}: {}", res_path, file_path, e)
         }
     };
 }
