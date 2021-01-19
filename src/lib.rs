@@ -5,7 +5,7 @@ pub(crate) mod native;
 pub mod res;
 pub(crate) mod select;
 pub(crate) mod singleton;
-pub mod udev;
+pub(crate) mod udev;
 
 pub use crate::config::*;
 pub use crate::core::*;
