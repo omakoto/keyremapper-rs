@@ -214,7 +214,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 _ if ev.is_key_on(ec::KEY_2, "") => km.press_key(ec::KEY_RIGHT, "a"),
 
                 // Send the other keys with alt+ctrl+shift+meta.
-                _ if ev.is_key_down_event() => km.press_key(ev.value, "sacw"),
+                _ if ev.is_key_down_event() => km.press_key(ev.code, "sacw"),
                 _ => log::warn!("Unexpected event {}", ev),
             }
             return;
