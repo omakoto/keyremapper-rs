@@ -32,7 +32,7 @@ pub(crate) const UINPUT_DEVICE_NAME_PREFIX: &str = "key-remapper";
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// Find all the evdev devices matching the given `KeyRemapperConfiguration`.
-fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDevice>> {
+fn find_devices<TState>(config: &KeyRemapperConfiguration<TState>) -> Result<Vec<evdev::EvdevDevice>> {
     log::debug!("Looking for devices...");
     let mut selected: Vec<evdev::EvdevDevice> = vec![];
 
@@ -105,13 +105,13 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
     return Ok(selected);
 }
 
-pub struct KeyRemapperInput {
-    config: KeyRemapperConfiguration,
+pub struct KeyRemapperInput<TState> {
+    config: KeyRemapperConfiguration<TState>,
     devices: Vec<evdev::EvdevDevice>,
 }
 
-impl KeyRemapperInput {
-    fn new(config: KeyRemapperConfiguration) -> Result<KeyRemapperInput> {
+impl<TState> KeyRemapperInput<TState> {
+    fn new(config: KeyRemapperConfiguration<TState>) -> Result<KeyRemapperInput<TState>> {
         // Find the target devices.
         return Ok(KeyRemapperInput {
             config: config,
@@ -154,7 +154,7 @@ fn restart_process() {
 }
 
 impl KeyRemapperUi {
-    fn new(config: &KeyRemapperConfiguration) -> Result<KeyRemapperUi> {
+    fn new<TState>(config: &KeyRemapperConfiguration<TState>) -> Result<KeyRemapperUi> {
         let indicator = if !config.use_system_tray {
             None
         } else {
@@ -210,7 +210,7 @@ impl KeyRemapperUi {
 }
 
 /// Create a new uinput device using the given `KeyRemapperConfiguration` with a suffix.
-fn create_uinput(config: &KeyRemapperConfiguration, name_suffix: &str, supported_events: &EventsDescriptor) -> Result<SyncedUinput> {
+fn create_uinput<TState>(config: &KeyRemapperConfiguration<TState>, name_suffix: &str, supported_events: &EventsDescriptor) -> Result<SyncedUinput> {
     let mut name = config.uinput_devices_prefix.clone();
     name.push_str(name_suffix);
 
@@ -219,10 +219,10 @@ fn create_uinput(config: &KeyRemapperConfiguration, name_suffix: &str, supported
 }
 
 // #[derive(Debug, Clone)]
-pub struct KeyRemapper {
-    config: KeyRemapperConfiguration,
+pub struct KeyRemapper<TState> {
+    config: KeyRemapperConfiguration<TState>,
     uinput: Option<SyncedUinput>,
-    input: Arc<ReentrantMutex<RefCell<KeyRemapperInput>>>,
+    input: Arc<ReentrantMutex<RefCell<KeyRemapperInput<TState>>>>,
     input_event_tracker: Arc<ReentrantMutex<RefCell<InputEventTracker>>>,
     ui: Arc<ReentrantMutex<RefCell<KeyRemapperUi>>>,
 
@@ -244,8 +244,8 @@ static MODIFIER_KEYS: &'static [i32; MODIFIER_COUNT] = &[
 
 type ModifierState = [bool; MODIFIER_COUNT];
 
-impl KeyRemapper {
-    fn new(config: KeyRemapperConfiguration) -> KeyRemapper {
+impl<TState> KeyRemapper<TState> {
+    fn new(config: KeyRemapperConfiguration<TState>) -> KeyRemapper<TState> {
         let ui = KeyRemapperUi::new(&config).unwrap();
 
         // Set up uinput
@@ -563,7 +563,7 @@ fn test_validate_modifiers_fail_2() {
 }
 
 /// Main loop, which runs on the I/O thread.
-fn main_loop(key_remapper: &KeyRemapper) {
+fn main_loop<TState>(key_remapper: &KeyRemapper<TState>) {
     let config = &key_remapper.config;
     let callbacks = config.callbacks_cloned();
 
@@ -672,7 +672,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
     }
 }
 
-pub fn process_commandline_args(config: &mut KeyRemapperConfiguration) {
+pub fn process_commandline_args<TState>(config: &mut KeyRemapperConfiguration<TState>) {
     let device_name_regex = config.device_name_regex.clone();
     let id_regex = config.id_regex.clone();
 
@@ -720,7 +720,7 @@ fn setup_panic_hook() {
 }
 
 /// Entry point.
-pub fn start(mut config: KeyRemapperConfiguration) {
+pub fn start<TState>(mut config: KeyRemapperConfiguration<TState>) {
     config.set_defaults();
 
     setup_panic_hook();

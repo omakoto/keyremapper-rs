@@ -1,5 +1,5 @@
 use core::fmt::Debug;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use regex::Regex;
 use std::{path::PathBuf, sync::Arc};
 
@@ -12,47 +12,47 @@ use crate::{
 /// It's extracted o implement the `Debug` trait, which `Fn` doesn't have.
 /// It uses `Arc` to make it `Clone`.
 #[derive(Clone)]
-pub(crate) struct KeyRemapperCallbacks {
-    pub(crate) on_init_args: Arc<dyn for<'a, 'b> Fn(clap::App<'a, 'b>) -> clap::App<'a, 'b> + Send + Sync + 'static>,
-    pub(crate) on_args_parsed: Arc<dyn Fn(&clap::ArgMatches) + Send + Sync + 'static>,
+pub(crate) struct KeyRemapperCallbacks<TState> where TState: Clone + Send + Sync {
+    pub(crate) on_init_args: Arc<dyn for<'a, 'b> Fn(&mut TState, clap::App<'a, 'b>) -> clap::App<'a, 'b> + Send + Sync + 'static>,
+    pub(crate) on_args_parsed: Arc<dyn Fn(&mut TState, &clap::ArgMatches) + Send + Sync + 'static>,
 
-    pub(crate) on_start: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
+    pub(crate) on_start: Arc<dyn Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>,
 
-    pub(crate) on_devices_detected: Arc<dyn Fn(&KeyRemapper, &[evdev::EvdevDevice]) + Send + Sync + 'static>,
-    pub(crate) on_devices_not_found: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
-    pub(crate) on_devices_lost: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
+    pub(crate) on_devices_detected: Arc<dyn Fn(&mut TState, &KeyRemapper<TState>, &[evdev::EvdevDevice]) + Send + Sync + 'static>,
+    pub(crate) on_devices_not_found: Arc<dyn Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>,
+    pub(crate) on_devices_lost: Arc<dyn Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>,
 
-    pub(crate) on_stop: Arc<dyn Fn(&KeyRemapper) + Send + Sync + 'static>,
+    pub(crate) on_stop: Arc<dyn Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>,
 
-    pub(crate) on_events_batch: Arc<dyn Fn(&KeyRemapper, &evdev::EvdevDevice, &[evdev::InputEvent]) + Send + Sync + 'static>,
-    pub(crate) on_event: Arc<dyn Fn(&KeyRemapper, &evdev::EvdevDevice, &evdev::InputEvent) + Send + Sync + 'static>,
+    pub(crate) on_events_batch: Arc<dyn Fn(&mut TState, &KeyRemapper<TState>, &evdev::EvdevDevice, &[evdev::InputEvent]) + Send + Sync + 'static>,
+    pub(crate) on_event: Arc<dyn Fn(&mut TState, &KeyRemapper<TState>, &evdev::EvdevDevice, &evdev::InputEvent) + Send + Sync + 'static>,
 }
 
-impl Debug for KeyRemapperCallbacks {
+impl<TState> Debug for KeyRemapperCallbacks<TState> where TState: Clone + Send + Sync {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "KeyRemapperCallbacks{{...}}")
     }
 }
 
-impl KeyRemapperCallbacks {
-    fn new() -> KeyRemapperCallbacks {
+impl<TState> KeyRemapperCallbacks<TState> where TState: Clone + Send + Sync {
+    fn new() -> KeyRemapperCallbacks<TState> {
         KeyRemapperCallbacks {
-            on_init_args: Arc::new(|app| app),
-            on_args_parsed: Arc::new(|_| {}),
-            on_start: Arc::new(|_| {}),
-            on_devices_detected: Arc::new(|_, _| {}),
-            on_devices_not_found: Arc::new(|_| {}),
-            on_devices_lost: Arc::new(|_| {}),
-            on_stop: Arc::new(|_| {}),
-            on_events_batch: Arc::new(|_, _, _| {}),
-            on_event: Arc::new(|_, _, _| {}),
+            on_init_args: Arc::new(|_, app| app),
+            on_args_parsed: Arc::new(|_, _| {}),
+            on_start: Arc::new(|_, _| {}),
+            on_devices_detected: Arc::new(|_, _, _| {}),
+            on_devices_not_found: Arc::new(|_, _| {}),
+            on_devices_lost: Arc::new(|_, _| {}),
+            on_stop: Arc::new(|_, _| {}),
+            on_events_batch: Arc::new(|_, _, _, _| {}),
+            on_event: Arc::new(|_, _, _, _| {}),
         }
     }
 }
 
 /// All the configurations passed from the client app.
 #[derive(Debug, Clone)]
-pub struct KeyRemapperConfiguration {
+pub struct KeyRemapperConfiguration<TState> where TState: Send + Sync {
     pub(crate) name: String,
     pub(crate) icon: Option<PathBuf>,
 
@@ -73,11 +73,12 @@ pub struct KeyRemapperConfiguration {
 
     pub(crate) uinput_devices_prefix: String,
 
-    pub(crate) callbacks: Arc<RwLock<KeyRemapperCallbacks>>,
+    pub(crate) callbacks: Arc<RwLock<KeyRemapperCallbacks<TState>>>,
+    pub(crate) state: Arc<Mutex<TState>>,
 }
 
-impl KeyRemapperConfiguration {
-    pub fn new(name: &str, device_name_regex: &str) -> KeyRemapperConfiguration {
+impl<TState> KeyRemapperConfiguration<TState>  where TState: Clone + Send + Sync {
+    pub fn new(name: &str, device_name_regex: &str, state: TState) -> KeyRemapperConfiguration<TState> {
         KeyRemapperConfiguration {
             name: name.to_string(),
             icon: None,
@@ -94,10 +95,11 @@ impl KeyRemapperConfiguration {
             callbacks: Arc::new(RwLock::new(KeyRemapperCallbacks::new())),
             device_name_regex_re: None,
             id_regex_re: None,
+            state: Arc::new(Mutex::new(state)),
         }
     }
 
-    pub fn set_icon<T>(&mut self, path: T) -> &mut KeyRemapperConfiguration
+    pub fn set_icon<T>(&mut self, path: T) -> &mut KeyRemapperConfiguration<TState>
     where
         T: Into<PathBuf>,
     {
@@ -105,44 +107,44 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn set_device_name_regex(&mut self, value: &str) -> &mut KeyRemapperConfiguration {
+    pub fn set_device_name_regex(&mut self, value: &str) -> &mut KeyRemapperConfiguration<TState> {
         self.device_name_regex = value.to_string();
         self
     }
 
-    pub fn set_id_regex(&mut self, value: &str) -> &mut KeyRemapperConfiguration {
+    pub fn set_id_regex(&mut self, value: &str) -> &mut KeyRemapperConfiguration<TState> {
         self.id_regex = value.to_string();
         self
     }
 
-    pub fn set_use_system_tray(&mut self, value: bool) -> &mut KeyRemapperConfiguration {
+    pub fn set_use_system_tray(&mut self, value: bool) -> &mut KeyRemapperConfiguration<TState> {
         self.use_system_tray = value;
         self
     }
 
-    pub fn set_grab(&mut self, value: bool) -> &mut KeyRemapperConfiguration {
+    pub fn set_grab(&mut self, value: bool) -> &mut KeyRemapperConfiguration<TState> {
         self.grab_devices = value;
         self
     }
 
-    pub fn set_write_to_uinput(&mut self, value: bool) -> &mut KeyRemapperConfiguration {
+    pub fn set_write_to_uinput(&mut self, value: bool) -> &mut KeyRemapperConfiguration<TState> {
         self.write_to_uinput = value;
         self
     }
 
-    pub fn set_uinput_events(&mut self, events: EventsDescriptor) -> &mut KeyRemapperConfiguration {
+    pub fn set_uinput_events(&mut self, events: EventsDescriptor) -> &mut KeyRemapperConfiguration<TState> {
         self.uinput_events = events;
         self
     }
 
-    pub fn set_use_non_keyboard(&mut self, value: bool) -> &mut KeyRemapperConfiguration {
+    pub fn set_use_non_keyboard(&mut self, value: bool) -> &mut KeyRemapperConfiguration<TState> {
         self.use_non_keyboard = value;
         self
     }
 
-    pub fn on_init_args<F>(&mut self, callback: F) -> &mut KeyRemapperConfiguration
+    pub fn on_init_args<F>(&mut self, callback: F) -> &mut KeyRemapperConfiguration<TState>
     where
-        F: for<'a, 'b> Fn(clap::App<'a, 'b>) -> clap::App<'a, 'b> + Send + Sync + 'static,
+        F: for<'a, 'b> Fn(&mut TState, clap::App<'a, 'b>) -> clap::App<'a, 'b> + Send + Sync + 'static,
     {
         {
             let mut callbacks = self.callbacks.write();
@@ -151,7 +153,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_args_parsed<F: Fn(&clap::ArgMatches) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration {
+    pub fn on_args_parsed<F: Fn(&mut TState, &clap::ArgMatches) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_args_parsed = Arc::new(callback);
@@ -159,7 +161,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_start<F: Fn(&KeyRemapper) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration {
+    pub fn on_start<F: Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_start = Arc::new(callback);
@@ -167,7 +169,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_devices_detected<F: Fn(&KeyRemapper, &[evdev::EvdevDevice]) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration {
+    pub fn on_devices_detected<F: Fn(&mut TState, &KeyRemapper<TState>, &[evdev::EvdevDevice]) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_devices_detected = Arc::new(callback);
@@ -175,7 +177,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_devices_not_found<F: Fn(&KeyRemapper) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration {
+    pub fn on_devices_not_found<F: Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_devices_not_found = Arc::new(callback);
@@ -183,7 +185,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_devices_lost<F: Fn(&KeyRemapper) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration {
+    pub fn on_devices_lost<F: Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_devices_lost = Arc::new(callback);
@@ -191,7 +193,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_stop<F: Fn(&KeyRemapper) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration {
+    pub fn on_stop<F: Fn(&mut TState, &KeyRemapper<TState>) + Send + Sync + 'static>(&mut self, callback: F) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_stop = Arc::new(callback);
@@ -199,10 +201,10 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_events_batch<F: Fn(&KeyRemapper, &evdev::EvdevDevice, &[evdev::InputEvent]) + Send + Sync + 'static>(
+    pub fn on_events_batch<F: Fn(&mut TState, &KeyRemapper<TState>, &evdev::EvdevDevice, &[evdev::InputEvent]) + Send + Sync + 'static>(
         &mut self,
         callback: F,
-    ) -> &mut KeyRemapperConfiguration {
+    ) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_events_batch = Arc::new(callback);
@@ -210,10 +212,10 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub fn on_event<F: Fn(&KeyRemapper, &evdev::EvdevDevice, &evdev::InputEvent) + Send + Sync + 'static>(
+    pub fn on_event<F: Fn(&mut TState, &KeyRemapper<TState>, &evdev::EvdevDevice, &evdev::InputEvent) + Send + Sync + 'static>(
         &mut self,
         callback: F,
-    ) -> &mut KeyRemapperConfiguration {
+    ) -> &mut KeyRemapperConfiguration<TState> {
         {
             let mut callbacks = self.callbacks.write();
             callbacks.on_event = Arc::new(callback);
@@ -221,7 +223,7 @@ impl KeyRemapperConfiguration {
         self
     }
 
-    pub(crate) fn set_defaults(&mut self) -> &mut KeyRemapperConfiguration {
+    pub(crate) fn set_defaults(&mut self) -> &mut KeyRemapperConfiguration<TState> {
         let name_cleansed = Regex::new(r#"\s+"#).unwrap().replace(&self.name, "_").to_string();
         if self.global_lock_name.is_empty() {
             self.global_lock_name = name_cleansed.clone();
@@ -250,7 +252,7 @@ impl KeyRemapperConfiguration {
         self.id_regex_re = Some(Regex::new(&self.id_regex).expect("Invalid regex detected"));
     }
 
-    pub(crate) fn callbacks_cloned(&self) -> KeyRemapperCallbacks {
+    pub(crate) fn callbacks_cloned(&self) -> KeyRemapperCallbacks<TState> {
         let callbacks = self.callbacks.read();
         callbacks.clone()
     }
