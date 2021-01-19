@@ -209,50 +209,50 @@ impl InputEvent {
 
     /// Return true if it's a key event of the given key.
     #[inline]
-    pub fn is_key(&self, key: i32) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && key == self.code;
+    pub fn is_key(&self, key: i32, modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && key == self.code && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event of any of the given keys.
     #[inline]
-    pub fn is_any_key(&self, keys: &[i32]) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && keys.contains(&self.code);
+    pub fn is_any_key(&self, keys: &[i32], modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && keys.contains(&self.code) && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event of the given key and the value is 1.
     #[inline]
-    pub fn is_key_down(&self, key: i32) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && self.value == 1 && key == self.code;
+    pub fn is_key_down(&self, key: i32, modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 1 && key == self.code && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event of the given key and the value is 0.
     #[inline]
-    pub fn is_key_up(&self, key: i32) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && self.value == 0 && key == self.code;
+    pub fn is_key_up(&self, key: i32, modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 0 && key == self.code && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event of the given key and the value is 1 or 2.
     #[inline]
-    pub fn is_key_on(&self, key: i32) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && self.value > 0 && key == self.code;
+    pub fn is_key_on(&self, key: i32, modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value > 0 && key == self.code && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event of any the given keys and the value is 1.
     #[inline]
-    pub fn is_any_key_down(&self, keys: &[i32]) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && self.value == 1 && keys.contains(&self.code);
+    pub fn is_any_key_down(&self, keys: &[i32], modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 1 && keys.contains(&self.code) && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event of any the given keys and the value is 0.
     #[inline]
-    pub fn is_any_key_up(&self, keys: &[i32]) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && self.value == 0 && keys.contains(&self.code);
+    pub fn is_any_key_up(&self, keys: &[i32], modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value == 0 && keys.contains(&self.code) && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event of any the given keys and the value is 1 or 2.
     #[inline]
-    pub fn is_any_key_on(&self, keys: &[i32]) -> bool {
-        return self.event_type == ec::EventType::EV_KEY && self.value > 0 && keys.contains(&self.code);
+    pub fn is_any_key_on(&self, keys: &[i32], modifiers: &str) -> bool {
+        return self.event_type == ec::EventType::EV_KEY && self.value > 0 && keys.contains(&self.code) && self.with_modifiers(modifiers);
     }
 
     /// Return true if it's a key event and the value is 1.
