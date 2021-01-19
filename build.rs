@@ -27,19 +27,10 @@ fn compile_resources(src: &str) {
 
 fn main() {
     println!("cargo:rerun-if-changed=src/wrapper.h");
-    println!("cargo:rerun-if-changed=scripts/gen_binding.py");
 
     println!("cargo:rustc-link-lib=evdev");
     println!("cargo:rustc-link-lib=udev");
     println!("cargo:rustc-link-lib=wnck-3");
-
-    //
-    let status = Command::new("scripts/gen_binding.py")
-        .spawn()
-        .expect("Failed running gen_binding.py")
-        .wait()
-        .unwrap();
-    assert!(status.success());
 
     // Build the native library bindings.
     let bindings = bindgen::Builder::default()
@@ -59,4 +50,14 @@ fn main() {
     compile_resources("examples/shortcut-remote-remapper/icons.gresource");
     compile_resources("examples/trackpoint-speedup/icons.gresource");
     compile_resources("examples/satechi-remapper/icons.gresource");
+
+    // Generate the key codes. Don't run it automatically though; different kernels have different headers.
+    // println!("cargo:rerun-if-changed=scripts/gen_binding.py");
+    // let status = Command::new("scripts/gen_binding.py")
+    //     .spawn()
+    //     .expect("Failed running gen_binding.py")
+    //     .wait()
+    //     .unwrap();
+    // assert!(status.success());
+
 }
