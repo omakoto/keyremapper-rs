@@ -1,7 +1,14 @@
 //! Reampper for the main keyboard
 use clap::{value_t, Arg};
 use libc::{self, aio_write};
-use std::{cell::RefCell, error::Error, iter::Copied, str::FromStr, sync::Arc};
+use std::{
+    cell::RefCell,
+    error::Error,
+    iter::Copied,
+    str::FromStr,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use keyremapper::KeyRemapperConfiguration;
 use parking_lot::Mutex;
@@ -122,13 +129,25 @@ impl ColorMode {
     }
 }
 
-#[derive(Debug, Default)]
-struct Options {
+#[derive(Debug)]
+struct State {
     color_mode: ColorMode,
+    last_was_syn_report: bool,
+    last_event_time: Option<Instant>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        return State {
+            color_mode: ColorMode::Auto,
+            last_was_syn_report: false,
+            last_event_time: None,
+        };
+    }
 }
 
 lazy_static::lazy_static! {
-    static ref OPTIONS: Arc<Mutex<RefCell<Options>>> = Arc::new(Mutex::new(RefCell::new(Options::default())));
+    static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
 }
 
 /// Entry point.
@@ -156,7 +175,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Parse arguments.
     config.on_args_parsed(|m| {
-        let options = OPTIONS.lock();
+        let options = STATE.lock();
         let color_mode_str = m.value_of("color_mode").unwrap();
         let c: ColorMode = ColorMode::from_str(color_mode_str).unwrap();
         options.borrow_mut().color_mode = c.resolve();
@@ -174,22 +193,28 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     config.on_event(|_km, device, ev| {
-        let options = OPTIONS.lock();
-        let c: ColorMode = options.borrow().color_mode;
+        let lock = STATE.lock();
+        let mut state = lock.borrow_mut();
+        let c: ColorMode = state.color_mode;
 
-        // TODO: Don't show it every line.
-        println!(
-            "{}# From device [{}{}{}]: {}{}{} ({}){}",
-            c.device_line(),
-            c.device_id(),
-            device.id_str(),
-            c.device_line(),
-            c.device_name(),
-            device.name(),
-            c.device_line(),
-            device.path(),
-            c.reset()
-        );
+        let show_device = match state.last_event_time {
+            None => true,
+            Some(time) => state.last_was_syn_report && Instant::now().duration_since(time) > Duration::from_millis(200),
+        };
+        if show_device {
+            println!(
+                "{}# From device [{}{}{}]: {}{}{} ({}){}",
+                c.device_line(),
+                c.device_id(),
+                device.id_str(),
+                c.device_line(),
+                c.device_name(),
+                device.name(),
+                c.device_line(),
+                device.path(),
+                c.reset()
+            );
+        }
 
         let line_color = match 0 {
             _ if ev.is_syn_report() => c.syn_report(),
@@ -199,6 +224,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ => c.other_event(),
         };
         println!("{}{}{}", line_color, ev, c.reset());
+
+        state.last_event_time = Some(Instant::now());
+        state.last_was_syn_report = ev.is_syn_report();
     });
 
     keyremapper::start(config);
