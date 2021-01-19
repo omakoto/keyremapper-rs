@@ -21,11 +21,13 @@ impl KeyEventType {
     }
 }
 
-pub(crate) const MODIFIER_ALT: u32 = 1 << 0;
-pub(crate) const MODIFIER_CTRL: u32 = 1 << 1;
-pub(crate) const MODIFIER_SHIFT: u32 = 1 << 2;
-pub(crate) const MODIFIER_WIN: u32 = 1 << 3;
-pub(crate) const MODIFIER_ESC: u32 = 1 << 4;
+pub(crate) type Modifers = u32;
+
+pub(crate) const MODIFIER_ALT: Modifers = 1 << 0;
+pub(crate) const MODIFIER_CTRL: Modifers = 1 << 1;
+pub(crate) const MODIFIER_SHIFT: Modifers = 1 << 2;
+pub(crate) const MODIFIER_WIN: Modifers = 1 << 3;
+pub(crate) const MODIFIER_ESC: Modifers = 1 << 4;
 
 /// Represents a single event. See https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,7 +37,7 @@ pub struct InputEvent {
     pub event_type: ec::EventType,
     pub code: i32,
     pub value: i32,
-    modifiers: u32,
+    modifiers: Modifers,
 }
 
 impl Display for InputEvent {
@@ -126,8 +128,17 @@ impl InputEvent {
         };
     }
 
-    pub(crate) fn set_modifiers(&mut self, values: u32) {
-        self.modifiers = values;
+    // pub(crate) fn set_modifiers(&mut self, values: Modifers) {
+    //     self.modifiers = values;
+    // }
+
+    pub(crate) fn set_modifiers(&mut self, alt: bool, ctrl: bool, shift: bool, winkey: bool, esc: bool) {
+        self.modifiers = (if alt { MODIFIER_ALT } else { 0 })
+            | (if ctrl { MODIFIER_CTRL } else { 0 })
+            | (if shift { MODIFIER_SHIFT } else { 0 })
+            | (if winkey { MODIFIER_WIN } else { 0 })
+            | (if esc { MODIFIER_ESC } else { 0 })
+            | 0;
     }
 
     pub fn with_alt(&self) -> bool {

@@ -173,10 +173,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("No devices found.");
     });
 
-    config.on_events_batch(|_km, device, events| {
+    config.on_event(|_km, device, ev| {
         let options = OPTIONS.lock();
         let c: ColorMode = options.borrow().color_mode;
 
+        // TODO: Don't show it every line.
         println!(
             "{}# From device [{}{}{}]: {}{}{} ({}){}",
             c.device_line(),
@@ -190,16 +191,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             c.reset()
         );
 
-        for ev in events {
-            let line_color = match 0 {
-                _ if ev.is_syn_report() => c.syn_report(),
-                _ if ev.is_key_event() => c.key_event(),
-                _ if ev.is_rel_event() => c.rel_event(),
-                _ if ev.is_abs_event() => c.abs_event(),
-                _ => c.other_event(),
-            };
-            println!("{}{}{}", line_color, ev, c.reset());
-        }
+        let line_color = match 0 {
+            _ if ev.is_syn_report() => c.syn_report(),
+            _ if ev.is_key_event() => c.key_event(),
+            _ if ev.is_rel_event() => c.rel_event(),
+            _ if ev.is_abs_event() => c.abs_event(),
+            _ => c.other_event(),
+        };
+        println!("{}{}{}", line_color, ev, c.reset());
     });
 
     keyremapper::start(config);

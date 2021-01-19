@@ -359,7 +359,7 @@ impl KeyRemapper {
         self.is_key_down(ec::KEY_LEFTALT) || self.is_key_down(ec::KEY_RIGHTALT)
     }
 
-    pub fn is_control_down(&self) -> bool {
+    pub fn is_ctrl_down(&self) -> bool {
         self.is_key_down(ec::KEY_LEFTCTRL) || self.is_key_down(ec::KEY_RIGHTCTRL)
     }
 
@@ -473,7 +473,7 @@ impl KeyRemapper {
             return false;
         }
 
-        if self.is_control_down() != ctrl && (ctrl || !ignore_other_modifiers) {
+        if self.is_ctrl_down() != ctrl && (ctrl || !ignore_other_modifiers) {
             return false;
         }
 
@@ -640,7 +640,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
             // Handle input events.
 
             let device = input.find_device_by_fd(ready_fd);
-            let events = match device.next_events() {
+            let mut events = match device.next_events() {
                 Ok(event) => event,
                 Err(_) => {
                     log::warn!("Unable to read event; device closed?");
@@ -654,11 +654,18 @@ fn main_loop(key_remapper: &KeyRemapper) {
             }
 
             (*callbacks.on_events_batch)(&key_remapper, &device, &events);
-            for ev in &events {
+            for ev in &mut events {
                 {
                     let tracker = key_remapper.input_event_tracker.lock();
                     tracker.borrow_mut().on_event_sent(ev);
                 }
+                ev.set_modifiers(
+                    key_remapper.is_alt_down(),
+                    key_remapper.is_ctrl_down(),
+                    key_remapper.is_shift_down(),
+                    key_remapper.is_winkey_down(),
+                    key_remapper.is_esc_down(),
+                );
                 (*callbacks.on_event)(&key_remapper, &device, ev);
             }
         }
