@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use crate::native;
+use crate::{native, validate_modifiers};
 
 use super::ec;
 
@@ -21,6 +21,12 @@ impl KeyEventType {
     }
 }
 
+pub(crate) const MODIFIER_ALT: u32 = 1 << 0;
+pub(crate) const MODIFIER_CTRL: u32 = 1 << 1;
+pub(crate) const MODIFIER_SHIFT: u32 = 1 << 2;
+pub(crate) const MODIFIER_WIN: u32 = 1 << 3;
+pub(crate) const MODIFIER_ESC: u32 = 1 << 4;
+
 /// Represents a single event. See https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InputEvent {
@@ -29,6 +35,7 @@ pub struct InputEvent {
     pub event_type: ec::EventType,
     pub code: i32,
     pub value: i32,
+    modifiers: u32,
 }
 
 impl Display for InputEvent {
@@ -36,14 +43,28 @@ impl Display for InputEvent {
         if self.is_syn_report() {
             return write!(f, "{{InputEvent: time={}.{:06} ===== SYN_REPORT =====}}", self.time_sec, self.time_usec);
         }
+        let modifiers = if self.modifiers == 0 {
+            String::new()
+        } else {
+            format!(
+                " modifiers=[{}{}{}{}{}]",
+                if self.with_alt() { "a" } else { "" },
+                if self.with_ctrl() { "c" } else { "" },
+                if self.with_shift() { "s" } else { "" },
+                if self.with_winkey() { "w" } else { "" },
+                if self.with_esc() { "e" } else { "" },
+            )
+        };
+
         return write!(
             f,
-            "{{InputEvent: time={}.{:06} type={} code={} value={}}}",
+            "{{InputEvent: time={}.{:06} type={} code={} value={}{}}}",
             self.time_sec,
             self.time_usec,
             self.type_name(),
             self.code_name(),
-            self.value
+            self.value,
+            modifiers,
         );
     }
 }
@@ -56,6 +77,7 @@ impl InputEvent {
             event_type,
             code,
             value,
+            modifiers: 0,
         };
     }
 
@@ -66,6 +88,7 @@ impl InputEvent {
             event_type,
             code,
             value,
+            modifiers: 0,
         };
     }
 
@@ -85,6 +108,7 @@ impl InputEvent {
             event_type: ec::EventType::from_i32(ie.type_ as i32),
             code: ie.code as i32,
             value: ie.value as i32,
+            modifiers: 0,
         };
     }
 
@@ -100,6 +124,64 @@ impl InputEvent {
             v if v.len() > 0 => v.to_string(),
             _ => format!("[Unknown code {}]", self.code),
         };
+    }
+
+    pub(crate) fn set_modifiers(&mut self, values: u32) {
+        self.modifiers = values;
+    }
+
+    pub fn with_alt(&self) -> bool {
+        return (self.modifiers & MODIFIER_ALT) != 0;
+    }
+
+    pub fn with_ctrl(&self) -> bool {
+        return (self.modifiers & MODIFIER_CTRL) != 0;
+    }
+
+    pub fn with_shift(&self) -> bool {
+        return (self.modifiers & MODIFIER_SHIFT) != 0;
+    }
+
+    pub fn with_winkey(&self) -> bool {
+        return (self.modifiers & MODIFIER_WIN) != 0;
+    }
+
+    pub fn with_esc(&self) -> bool {
+        return (self.modifiers & MODIFIER_ESC) != 0;
+    }
+
+    pub fn with_modifiers(&self, modifiers: &str) -> bool {
+        validate_modifiers(modifiers, "acswe*");
+
+        let ignore_other_modifiers = modifiers.contains('*');
+
+        let alt = modifiers.contains('a');
+        let ctrl = modifiers.contains('c');
+        let shift = modifiers.contains('s');
+        let win = modifiers.contains('w');
+        let esc = modifiers.contains('e');
+
+        if self.with_alt() != alt && (alt || !ignore_other_modifiers) {
+            return false;
+        }
+
+        if self.with_ctrl() != ctrl && (ctrl || !ignore_other_modifiers) {
+            return false;
+        }
+
+        if self.with_shift() != shift && (shift || !ignore_other_modifiers) {
+            return false;
+        }
+
+        if self.with_winkey() != win && (win || !ignore_other_modifiers) {
+            return false;
+        }
+
+        if self.with_esc() != esc && (esc || !ignore_other_modifiers) {
+            return false;
+        }
+
+        return true;
     }
 
     /// Return true if it's a SYN_REPORT event.
@@ -221,6 +303,7 @@ fn test_input_event_format_ev_time() {
                 event_type: ec::EventType::EV_KEY,
                 code: ec::KEY_A,
                 value: 1,
+                modifiers: 0,
             }
         )
     )

@@ -423,7 +423,7 @@ impl KeyRemapper {
             return;
         }
 
-        KeyRemapper::validate_modifiers(modifiers, "acsw");
+        validate_modifiers(modifiers, "acsw");
 
         // Save the pressed modifier state and release them all.
         let out_modifier_state = self.save_out_modifier_state();
@@ -459,7 +459,7 @@ impl KeyRemapper {
     ///   must be pressed *and* the other modifiers are rnot pressed, while `"ac*"` means both Alt and Ctrl
     ///   must be pressed but don't care if the other modifiers are pressed.
     pub fn are_modifiers_pressed(&self, modifiers: &str) -> bool {
-        KeyRemapper::validate_modifiers(modifiers, "acswe*");
+        validate_modifiers(modifiers, "acswe*");
 
         let ignore_other_modifiers = modifiers.contains('*');
 
@@ -490,14 +490,6 @@ impl KeyRemapper {
         }
 
         return true;
-    }
-
-    fn validate_modifiers(in_modifiers: &str, valid_modifiers: &str) {
-        for m in in_modifiers.chars() {
-            if !valid_modifiers.contains(m) {
-                panic!(r#"Modifier "{}" contains an invalid character "{}""#, in_modifiers, m);
-            }
-        }
     }
 
     /// Return true if the given event is of the given key and value is 1 (pressed) or 2 (repeat).
@@ -540,26 +532,34 @@ impl KeyRemapper {
     // TODO Support adding menu items.
 }
 
-#[test]
-fn test_check_modifiers_ok() {
-    KeyRemapper::validate_modifiers("", "a");
-    KeyRemapper::validate_modifiers("a", "a");
+pub(crate) fn validate_modifiers(in_modifiers: &str, valid_modifiers: &str) {
+    for m in in_modifiers.chars() {
+        if !valid_modifiers.contains(m) {
+            panic!(r#"Modifier "{}" contains an invalid character "{}""#, in_modifiers, m);
+        }
+    }
+}
 
-    KeyRemapper::validate_modifiers("", "sa");
-    KeyRemapper::validate_modifiers("a", "sa");
-    KeyRemapper::validate_modifiers("s", "sa");
-    KeyRemapper::validate_modifiers("as", "sa");
+#[test]
+fn test_validate_modifiers() {
+    validate_modifiers("", "a");
+    validate_modifiers("a", "a");
+
+    validate_modifiers("", "sa");
+    validate_modifiers("a", "sa");
+    validate_modifiers("s", "sa");
+    validate_modifiers("as", "sa");
 }
 
 #[test]
 #[should_panic(expected = r#"Modifier "c" contains an invalid character "c""#)]
-fn test_check_modifiers_fail_1() {
-    KeyRemapper::validate_modifiers("c", "sa");
+fn test_validate_modifiers_fail_1() {
+    validate_modifiers("c", "sa");
 }
 #[test]
 #[should_panic(expected = r#"Modifier "sca" contains an invalid character "c""#)]
-fn test_check_modifiers_fail_2() {
-    KeyRemapper::validate_modifiers("sca", "sa");
+fn test_validate_modifiers_fail_2() {
+    validate_modifiers("sca", "sa");
 }
 
 /// Main loop, which runs on the I/O thread.
