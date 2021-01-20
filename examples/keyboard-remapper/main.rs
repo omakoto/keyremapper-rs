@@ -4,6 +4,7 @@ extern crate lazy_static;
 use std::{cell::RefCell, error::Error, sync::Arc, time::Duration};
 
 use clap::{value_t, Arg};
+use ec::KEY_FORWARD;
 use keyremapper::{
     evdev::{self, ec},
     res::get_gio_resource_as_file,
@@ -107,6 +108,19 @@ impl State {}
 lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
     // static ref STATE: State = State::default();
+}
+
+// Returns true if the active window is Chrome.
+fn is_chrome() -> bool {
+    let active_window = match keyremapper::ui::WindowInfo::from_active_window() {
+        Ok(res) => res,
+        Err(e) => {
+            log::warn!("Unable to get active window info: {}", e);
+            return false;
+        }
+    };
+    log::debug!("Active window={:?}", active_window);
+    return active_window.class_group_name == "google-chrome";
 }
 
 /// Entry point.
@@ -258,6 +272,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // See VERSATILE_KEYS.
             _ if ev.is_any_key_on(VERSATILE_KEYS, "e") => km.press_key(ev.code, "acsw"),
+
+            // Chrome only -- F5 / F6 as BACK / FORWARD
+            _ if ev.is_key_on(ec::KEY_F5, "") && is_chrome() => km.press_key(ec::KEY_BACK, ""),
+            _ if ev.is_key_on(ec::KEY_F6, "") && is_chrome() => km.press_key(ec::KEY_FORWARD, ""),
 
             // ESC + home/end -> ATL+Left/Right (back / forward)
             _ if ev.is_key_on(ec::KEY_HOME, "e") => km.press_key(ec::KEY_LEFT, "a"),

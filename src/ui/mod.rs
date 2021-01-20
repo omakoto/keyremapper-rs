@@ -9,6 +9,7 @@ use x11rb::wrapper::LazyAtom;
 use x11rb::x11_utils::TryParse;
 use x11rb::xcb_ffi::XCBConnection;
 
+// Note, looks like this doesn't need to be called on the I/O thread to use `get_active_window_info()`.
 pub fn x_init_threads() {
     unsafe {
         if crate::native::XInitThreads() == 0 {
@@ -26,7 +27,7 @@ pub struct WindowInfo {
 
 impl WindowInfo {
     pub fn from_active_window() -> Result<WindowInfo, Box<dyn Error>> {
-        return get_window_info();
+        return get_active_window_info();
     }
 }
 
@@ -36,7 +37,7 @@ fn test_from_active_window() {
     println!("Active window={:?}", WindowInfo::from_active_window());
 }
 
-fn get_window_info() -> Result<WindowInfo, Box<dyn Error>> {
+fn get_active_window_info() -> Result<WindowInfo, Box<dyn Error>> {
     // Set up our state
     let (conn, screen) = XCBConnection::connect(None)?;
     let root = conn.setup().roots[screen].root;

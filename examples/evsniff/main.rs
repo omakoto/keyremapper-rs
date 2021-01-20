@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use keyremapper::KeyRemapperConfiguration;
+use keyremapper::{evdev::ec, KeyRemapperConfiguration};
 use parking_lot::Mutex;
 
 const NAME: &str = "EvSniff";

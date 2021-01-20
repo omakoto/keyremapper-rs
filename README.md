@@ -13,11 +13,9 @@ At a high level, it allows to "steal" input events from specific input devices
 - Unlike AHK, KeyRemapper can distinguish different input devices, and allows you to handle different
   devices differently.
 
-- Unlike AHK, KeyRemapper doesn't provide any features to allow to use different mappings for
-  different apps, or to control windows, etc. You need to write code to do such things.
+- This library provides a function to get the active window information. Use this to use different mappings
+  for different apps.
 
-  (See also later section for creating different mappings for different apps.)
-  
 ## Prerequisite
 
 ### 1. Gain access to `/devn/input/*` and `/dev/uinput`
@@ -46,58 +44,37 @@ See also:
 
 - `sudo apt install -y libappindicator3-dev libgtk-3-dev libevdev-dev libudev-dev libwnck-3-dev`
 
-
 ## Samples
  
 Note: all the following samples will _remap only certain kinds of keyboards_ specified
 by the regex `DEVICE_RE` in them. In order to use them with your input devices, use the `--match-device-name` option and provide a regex that
-matches your input device. Find the device name using `evtest(1)` or the sample `evsnif`.
+matches your input device. You can find the device name and the vendor/product ID of your device using the `evsniff` sample.
 
 If you need to disdistinguish different devices with the same name,
 provide a regex mathing the vendor/product ID with the `--match-id` option.
 
-- [keyboard-remapper.py](blob/main/examples/keyboard-remapper/main.rs)
+- Install all the samples: run `./install-examples.sh`
+
+- [keyboard-remapper](blob/main/examples/keyboard-remapper/main.rs)
   - For the following 3 keyboards:
     - The Thinkpad Internal keyboard (at least for X1 carbon gen7 and P1 gen2)
     - Topre Realforce
     - https://www.amazon.com/gp/product/B00EZ4A2OQ
   - Adds various shortcuts using `ESC`.
+  
   - Creates an extra uinput device to inject mouse wheel events.
     e.g. `ESC` + `H`, `J`, `K` and `L` for virtucal and horizontal scroll.
+  
+  - App specific remap -- on Chrome, use `F5`/`F6` as `BACK`/`FORWARD`. This can be
+    done using `keyremapper::ui::WindowInfo::from_active_window()`.
 
 - [shortcut-remote-remapper](blob/main/examples/shortcut-remote-remapper/main.rs) for https://www.amazon.com/gp/product/B01NC2LEYP
 
 - [trackpoint-speedup](blob/main/examples/trackpoint-speedup/main.rs) Speed up Thinkpad trackpoint.
    I can never figure out how to easily do it.
 
-- [evsniff](blob/main/examples/evsniff/main.rs) Kind of like evtest(1) but reads all the events at once.
+- [evsniff](blob/main/examples/evsniff/main.rs) Kind of like `evtest(1)` but reads all the events at once.
   Use this to figure out the device name and its vendor/product IDs.
-
-## Does it support creating different mappings for different apps?
-
-The previous version written in Python (https://github.com/omakoto/key-remapper) supported it using libwnck.
-
-I tried the same thing but faced problems:
-
-- First, using libwnck in a worker thread (the I/O thread) caused the follwoing problem.
-
-```
-(keyboard-remapper:444669): Wnck-CRITICAL **: 18:20:10.378: update_client_list: assertion 'reentrancy_guard == 0' failed
-[xcb] Unknown sequence number while processing reply
-[xcb] Most likely this is a multi-threaded client and XInitThreads has not been called
-[xcb] Aborting, sorry about that.
-keyboard-remapper: ../../src/xcb_io.c:641: _XReply: Assertion `!xcb_xlib_threads_sequence_lost' failed.
-./start-keyboard-remapper.sh: line 7: 444669 Aborted                 (core dumped) RUST_BACKTRACE=1 RUST_LOG=debug cargo run --example $prog_name -- "$@"
-```
-- Calling `XInitThreads()` in the I/O thread still caused anther problem. (Deadlock or something, forgot.)
-- Then I tired https://github.com/psychon/x11rb, following https://www.reddit.com/r/rust/comments/f7yrle/get_information_about_current_window_xorg/ (the branch: https://github.com/omakoto/keyremapper-rs/blob/wnck-bg-thread/src/ui/mod.rs), which did work, if I called `XInitThreads()` in the worker thread.
-- However, calling `XInitThreads()` in a non-mainthread appears to break
-libappindicator -- if I click the task tray icon, the process seg faults.
-
-- The python version did the I/O on the mainthread, using https://developer.gnome.org/pygobject/stable/glib-functions.html#function-glib--io-add-watch. In order to do this, I need to integrate the device polling into the gtk main loop, which however doesn't seem to be supported with the current versin of gtk-rs. The relevant APIs (e.g. `g_source_add_unix_fd()` -- see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html) all seems to be left unimplemented with TODOs.
-
-Getting the current window information doesn't seem to be supported by wayland by design for "security" anyway, so I've decided not to do it.
-
 
 ## TODOs
 
