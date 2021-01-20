@@ -1,11 +1,4 @@
-use std::{
-    cell::RefCell,
-    error::Error,
-    process::{self, Command},
-    sync::Arc,
-    thread,
-    time::{Duration, Instant},
-};
+use std::{cell::RefCell, error::Error, process::{self, Command}, sync::{Arc, atomic::{AtomicBool, Ordering}}, thread, time::{Duration, Instant}};
 
 use clap::{App, Arg};
 use parking_lot::ReentrantMutex;
@@ -147,21 +140,7 @@ unsafe impl Send for KeyRemapperUi {}
 unsafe impl Sync for KeyRemapperUi {}
 
 
-// TODO Call it before calling restart_process(), but to do that, we'll need to
-// propagate the key_remapper instance.
-fn process_clean_up(key_remapper: &KeyRemapper) {
-    // Reset the outgoing keys.
-    // It seems like sometimes the "reset" events won't be sent..? So tried adding a 200ms sleep.
-    key_remapper.reset_out();
-    thread::sleep(Duration::from_millis(200));
-}
-
-fn restart_process() {
-    let args: Vec<String> = std::env::args().collect();
-    use std::os::unix::process::CommandExt;
-    let err = Command::new(&args[0]).args(&args[1..]).exec();
-    panic!("Unable to restart process: {}", err);
-}
+static DO_RESTART_PROCESS: AtomicBool = AtomicBool::new(false);
 
 impl KeyRemapperUi {
     fn new(config: &KeyRemapperConfiguration) -> Result<KeyRemapperUi> {
@@ -193,7 +172,9 @@ impl KeyRemapperUi {
 
             let menu_restart = gtk::MenuItem::with_label(&format!("Restart {}", config.name));
             menu_restart.connect_activate(|_| {
-                restart_process();
+                log::info!("Restarting...");
+                DO_RESTART_PROCESS.store(true, Ordering::Release);
+                gtk::main_quit();
             });
             m.append(&menu_restart);
 
@@ -729,6 +710,20 @@ fn setup_panic_hook() {
     }));
 }
 
+fn process_clean_up(key_remapper: &KeyRemapper) {
+    // Reset the outgoing keys.
+    // It seems like sometimes the "reset" events won't be sent..? So tried adding a 200ms sleep.
+    key_remapper.reset_out();
+    thread::sleep(Duration::from_millis(200));
+}
+
+fn restart_process() -> ! {
+    let args: Vec<String> = std::env::args().collect();
+    use std::os::unix::process::CommandExt;
+    let err = Command::new(&args[0]).args(&args[1..]).exec();
+    panic!("Unable to restart process: {}", err);
+}
+
 /// Entry point.
 pub fn start(mut config: KeyRemapperConfiguration) {
     config.set_defaults();
@@ -760,6 +755,10 @@ pub fn start(mut config: KeyRemapperConfiguration) {
 
     gtk::main();
     process_clean_up(&key_remapper_clone);
+
+    if DO_RESTART_PROCESS.load(Ordering::Acquire) {
+        restart_process();
+    }
 
     log::info!("KeyRemapper stopping for {}", name);
 }
