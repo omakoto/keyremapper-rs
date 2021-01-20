@@ -146,6 +146,16 @@ pub struct KeyRemapperUi {
 unsafe impl Send for KeyRemapperUi {}
 unsafe impl Sync for KeyRemapperUi {}
 
+
+// TODO Call it before calling restart_process(), but to do that, we'll need to
+// propagate the key_remapper instance.
+fn process_clean_up(key_remapper: &KeyRemapper) {
+    // Reset the outgoing keys.
+    // It seems like sometimes the "reset" events won't be sent..? So tried adding a 200ms sleep.
+    key_remapper.reset_out();
+    thread::sleep(Duration::from_millis(200));
+}
+
 fn restart_process() {
     let args: Vec<String> = std::env::args().collect();
     use std::os::unix::process::CommandExt;
@@ -749,11 +759,7 @@ pub fn start(mut config: KeyRemapperConfiguration) {
         .expect("Unable to start I/O thread");
 
     gtk::main();
-
-    // Reset the outgoing keys.
-    // It seems like sometimes the "reset" events won't be sent..? So tried adding a 200ms sleep.
-    key_remapper_clone.reset_out();
-    thread::sleep(Duration::from_millis(200));
+    process_clean_up(&key_remapper_clone);
 
     log::info!("KeyRemapper stopping for {}", name);
 }
