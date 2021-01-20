@@ -1,4 +1,4 @@
-//! Reampper for the main keyboard
+//! Evsniff is like evtest(1) but reads all the input devices.
 use clap::{value_t, Arg};
 use libc::{self, aio_write};
 use std::{
