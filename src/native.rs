@@ -40,4 +40,6 @@ extern "C" {
 
     ///  takes *WnckScreen
     pub fn wnck_window_get_class_instance_name(window: *mut c_void) -> *const c_char;
+
+    pub fn XInitThreads() -> libc::c_uint;
 }

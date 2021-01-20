@@ -1,13 +1,13 @@
 //! UI related utilities.
 // Copied from https://www.reddit.com/r/rust/comments/f7yrle/get_information_about_current_window_xorg/
 
-use std::error::Error;
 use libc::c_int;
-use x11rb::xcb_ffi::XCBConnection;
-use x11rb::generated::xproto::{ConnectionExt, Atom, GetPropertyReply, ATOM, WINDOW};
-use x11rb::wrapper::LazyAtom;
+use std::error::Error;
 use x11rb::connection::Connection;
+use x11rb::generated::xproto::{Atom, ConnectionExt, GetPropertyReply, ATOM, WINDOW};
+use x11rb::wrapper::LazyAtom;
 use x11rb::x11_utils::TryParse;
+use x11rb::xcb_ffi::XCBConnection;
 
 pub fn x_init_threads() {
     unsafe {
@@ -17,7 +17,7 @@ pub fn x_init_threads() {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WindowInfo {
     pub title: String,
     pub class_group_name: String,
@@ -35,7 +35,6 @@ fn test_from_active_window() {
     x_init_threads();
     println!("Active window={:?}", WindowInfo::from_active_window());
 }
-
 
 fn get_window_info() -> Result<WindowInfo, Box<dyn Error>> {
     // Set up our state
@@ -62,7 +61,7 @@ fn get_window_info() -> Result<WindowInfo, Box<dyn Error>> {
     // println!("Window name: {:?}", parse_string_property(&name));
     // println!("Window instance: {:?}", instance);
     // println!("Window class: {:?}", class);
-    
+
     return Ok(WindowInfo {
         title: parse_string_property(&name).to_string(),
         class_group_name: instance.to_string(),

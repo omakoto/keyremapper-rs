@@ -2,7 +2,10 @@ use std::{collections::HashMap, error::Error, sync::Arc};
 
 use parking_lot::RwLock;
 
-use super::{ec, InputEvent};
+use super::{
+    ec::{self, EventType},
+    InputEvent,
+};
 
 #[derive(Debug, Clone)]
 struct InputEventTrackerInner {

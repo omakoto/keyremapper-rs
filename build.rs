@@ -30,6 +30,7 @@ fn main() {
 
     println!("cargo:rustc-link-lib=evdev");
     println!("cargo:rustc-link-lib=udev");
+    println!("cargo:rustc-link-lib=X11");
 
     // Build the native library bindings.
     let bindings = bindgen::Builder::default()
@@ -58,5 +59,4 @@ fn main() {
     //     .wait()
     //     .unwrap();
     // assert!(status.success());
-
 }
