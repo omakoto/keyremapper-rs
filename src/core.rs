@@ -750,7 +750,10 @@ pub fn start(mut config: KeyRemapperConfiguration) {
 
     gtk::main();
 
+    // Reset the outgoing keys.
+    // It seems like sometimes the "reset" events won't be sent..? So tried adding a 200ms sleep.
     key_remapper_clone.reset_out();
+    thread::sleep(Duration::from_millis(200));
 
     log::info!("KeyRemapper stopping for {}", name);
 }
