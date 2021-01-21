@@ -1,12 +1,10 @@
 use std::os::unix::io::AsRawFd;
 use std::{collections::HashMap, fs::File, path::Path, sync::Arc};
+use anyhow::{Context, Result};
 
 use crate::native::{self, string_from_c_str};
 
-use super::{
-    ec::{self, EventType},
-    EvdevError, InputEvent,
-};
+use super::{EvdevError, InputEvent, ec::{self, EventType}};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct EvdevAbsInfo {
@@ -189,7 +187,7 @@ pub struct EvdevDevice {
 }
 
 impl EvdevDevice {
-    pub fn with_path(path: &Path) -> Result<EvdevDevice, EvdevError> {
+    pub fn with_path(path: &Path) -> Result<EvdevDevice> {
         log::debug!("Opening evdev device {:?}...", path);
 
         unsafe {
@@ -245,7 +243,7 @@ impl EvdevDevice {
         self.events.clone()
     }
 
-    pub fn grab(&mut self, grab: bool) -> Result<(), EvdevError> {
+    pub fn grab(&mut self, grab: bool) -> Result<()> {
         unsafe {
             if self.grabbed == grab {
                 return Ok(());
@@ -257,10 +255,10 @@ impl EvdevDevice {
             };
             let result = native::libevdev_grab(self.device.ptr, mode);
             if result == -libc::EBUSY {
-                return Err(EvdevError::DeviceGrabError);
+                return Err(EvdevError::DeviceGrabError).with_context(|| format!("Unable to grab device {:?}: Device already grabbed?", self.name()));
             }
             if result != 0 {
-                return Err(EvdevError::ErrnoError(-result));
+                return Err(EvdevError::ErrnoError(-result)).with_context(|| format!("Unable to grab device {:?}", self.name()));
             }
             self.grabbed = grab;
             return Ok(());

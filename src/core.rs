@@ -13,6 +13,7 @@ use std::{
 use clap::{App, Arg};
 use parking_lot::ReentrantMutex;
 use rand::prelude::*;
+use anyhow::{Context, Result};
 
 use crate::{
     evdev::{
@@ -31,8 +32,6 @@ use libappindicator::{AppIndicator, AppIndicatorStatus};
 use notify_rust::{Notification, NotificationHandle, Timeout};
 
 pub(crate) const UINPUT_DEVICE_NAME_PREFIX: &str = "key-remapper";
-
-pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// Find all the evdev devices matching the given `KeyRemapperConfiguration`.
 fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDevice>> {
@@ -92,12 +91,18 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
         if config.grab_devices {
             match device.grab(true) {
                 Ok(_) => {}
-                Err(evdev::EvdevError::DeviceGrabError) => {
-                    log::warn!("Unable to grab device {}. Already grabbed?", device.name());
-                    continue;
+                Err(ref e) => {
+                    match e.root_cause.downcast_ref::<evdev::EvdevError::DeviceGrabError>() {
+                        Some(_) => {
+                            log::warn!("Unable to grab device {}. Already grabbed?", device.name());
+                            continue;
+                        },
+                        None => {}
+                    }
+                    return Err(err);
                 }
-                Err(err) => {
-                    return Err(Box::new(err));
+                Err(e) => {
+                    return Err(e);
                 }
             }
         }

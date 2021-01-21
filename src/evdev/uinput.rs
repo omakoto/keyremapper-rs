@@ -6,6 +6,7 @@ use std::{
 };
 
 use parking_lot::{ReentrantMutex, ReentrantMutexGuard, RwLock};
+use anyhow::{Context, Result, bail};
 
 use crate::native::{self, c_string_from_str};
 
@@ -70,9 +71,9 @@ pub struct Uinput {
 }
 
 impl Uinput {
-    pub fn new(name: &str, events: &EventsDescriptor) -> Result<Uinput, EvdevError> {
+    pub fn new(name: &str, events: &EventsDescriptor) -> Result<Uinput> {
         if name.len() == 0 {
-            return Err(EvdevError::UinputCreationError("Name must not be empty".to_string()));
+            bail!("Unable to create uinput device. Device name must be given.");
         }
         unsafe {
             let file = fs::OpenOptions::new().read(true).write(true).open("/dev/uinput")?;
@@ -90,13 +91,13 @@ impl Uinput {
                 log::debug!("Enabling event type {:?}...", event_type);
                 let ret = native::libevdev_enable_event_type(dev, (*event_type) as u32);
                 if ret != 0 {
-                    return Err(EvdevError::UinputCreationError("libevdev_enable_event_type failed".to_string()));
+                    bail!("libevdev_enable_event_type() failed");
                 }
                 for code in codes {
                     // log::debug!("  {}...", code);
                     let ret = native::libevdev_enable_event_code(dev, (*event_type) as u32, (*code) as u32, std::ptr::null());
                     if ret != 0 {
-                        return Err(EvdevError::UinputCreationError("libevdev_enable_event_code failed".to_string()));
+                        bail!("libevdev_enable_event_code() failed");
                     }
                 }
             }
@@ -105,14 +106,14 @@ impl Uinput {
                 log::debug!("Enabling event type {:?}...", event_type);
                 let ret = native::libevdev_enable_event_type(dev, event_type as u32);
                 if ret != 0 {
-                    return Err(EvdevError::UinputCreationError("libevdev_enable_event_type failed".to_string()));
+                    bail!("libevdev_enable_event_type() failed");
                 }
                 for (code, absinfo) in &events.abs_info {
                     // log::debug!("  {}...", code);
                     let raw_absinfo = absinfo.to_raw_absinfo();
                     let ret = native::libevdev_enable_event_code(dev, event_type as u32, (*code) as u32, (&raw_absinfo) as *const _ as *const c_void);
                     if ret != 0 {
-                        return Err(EvdevError::UinputCreationError("libevdev_enable_event_code failed".to_string()));
+                        bail!("libevdev_enable_event_code() failed");
                     }
                 }
             }
@@ -120,7 +121,7 @@ impl Uinput {
             let mut uinput: *mut native::libevdev_uinput = std::ptr::null_mut();
             let err = native::libevdev_uinput_create_from_device(dev, fd, &mut uinput);
             if err < 0 {
-                return Err(EvdevError::ErrnoError(-err));
+                return Err(EvdevError::ErrnoError(-err)).context("libevdev_uinput_create_from_device() failed");
             }
             return Ok(Uinput {
                 uinput: RawUinput::new(name.to_string(), file, fd, uinput),
@@ -186,7 +187,7 @@ pub struct SyncedUinput {
 }
 
 impl SyncedUinput {
-    pub fn new(name: &str, events: &EventsDescriptor) -> Result<SyncedUinput, EvdevError> {
+    pub fn new(name: &str, events: &EventsDescriptor) -> Result<SyncedUinput> {
         Ok(SyncedUinput {
             lock: Arc::new(ReentrantMutex::new(())),
             uinput: Arc::new(RwLock::new(Uinput::new(name, events)?)),
