@@ -173,7 +173,7 @@ impl KeyRemapperUi {
             let menu_restart = gtk::MenuItem::with_label(&format!("Restart {}", config.name));
             menu_restart.connect_activate(|_| {
                 log::info!("Restarting...");
-                DO_RESTART_PROCESS.store(true, Ordering::Release);
+                DO_RESTART_PROCESS.store(true, Ordering::SeqCst);
                 gtk::main_quit();
             });
             m.append(&menu_restart);
@@ -756,7 +756,7 @@ pub fn start(mut config: KeyRemapperConfiguration) {
     gtk::main();
     process_clean_up(&key_remapper_clone);
 
-    if DO_RESTART_PROCESS.load(Ordering::Acquire) {
+    if DO_RESTART_PROCESS.load(Ordering::SeqCst) {
         restart_process();
     }
 
