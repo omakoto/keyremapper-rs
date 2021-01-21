@@ -65,8 +65,8 @@ fn get_active_window_info() -> Result<WindowInfo, Box<dyn Error>> {
 
     return Ok(WindowInfo {
         title: parse_string_property(&name).to_string(),
-        class_group_name: instance.to_string(),
-        clsas_instance_name: class.to_string(),
+        class_group_name: class.to_string(),
+        clsas_instance_name: instance.to_string(),
     });
 }
 

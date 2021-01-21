@@ -120,7 +120,7 @@ fn is_chrome() -> bool {
         }
     };
     log::debug!("Active window={:?}", active_window);
-    return active_window.class_group_name == "google-chrome";
+    return active_window.class_group_name == "Google-chrome";
 }
 
 /// Entry point.
