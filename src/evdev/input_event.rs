@@ -30,7 +30,7 @@ pub(crate) const MODIFIER_WIN: Modifers = 1 << 3;
 pub(crate) const MODIFIER_ESC: Modifers = 1 << 4;
 
 /// Represents a single event. See https://www.kernel.org/doc/html/latest/input/input.html#event-interface
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InputEvent {
     pub time_sec: i64,
     pub time_usec: i64,
@@ -128,10 +128,9 @@ impl InputEvent {
         };
     }
 
-    // pub(crate) fn set_modifiers(&mut self, values: Modifers) {
-    //     self.modifiers = values;
-    // }
-
+    /// Set the modifiers. This struct itself doesn't set `modifiers` and instead it expects the
+    /// upper layer sets them via this function. This is because we want to support multiple keyboards
+    /// and pressing some modifiers on keyboard A and then press a key on keyboard B.
     pub(crate) fn set_modifiers(&mut self, alt: bool, ctrl: bool, shift: bool, winkey: bool, esc: bool) {
         self.modifiers = (if alt { MODIFIER_ALT } else { 0 })
             | (if ctrl { MODIFIER_CTRL } else { 0 })

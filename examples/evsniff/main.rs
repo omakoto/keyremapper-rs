@@ -1,21 +1,20 @@
 //! Evsniff is like evtest(1) but reads all the input devices.
-use clap::{value_t, Arg};
-use libc::{self, aio_write};
+use clap::Arg;
+use libc;
 use std::{
     cell::RefCell,
     error::Error,
-    iter::Copied,
     str::FromStr,
     sync::Arc,
     time::{Duration, Instant},
 };
 
-use keyremapper::{evdev::ec, KeyRemapperConfiguration};
+use keyremapper::KeyRemapperConfiguration;
 use parking_lot::Mutex;
 
 const NAME: &str = "EvSniff";
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ColorMode {
     Always,
     Never,

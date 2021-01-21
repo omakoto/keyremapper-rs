@@ -18,7 +18,7 @@ pub fn x_init_threads() {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct WindowInfo {
     pub title: String,
     pub class_group_name: String,

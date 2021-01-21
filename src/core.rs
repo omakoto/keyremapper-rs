@@ -1,4 +1,14 @@
-use std::{cell::RefCell, error::Error, process::{self, Command}, sync::{Arc, atomic::{AtomicBool, Ordering}}, thread, time::{Duration, Instant}};
+use std::{
+    cell::RefCell,
+    error::Error,
+    process::{self, Command},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread,
+    time::{Duration, Instant},
+};
 
 use clap::{App, Arg};
 use parking_lot::ReentrantMutex;
@@ -138,7 +148,6 @@ pub struct KeyRemapperUi {
 
 unsafe impl Send for KeyRemapperUi {}
 unsafe impl Sync for KeyRemapperUi {}
-
 
 static DO_RESTART_PROCESS: AtomicBool = AtomicBool::new(false);
 
