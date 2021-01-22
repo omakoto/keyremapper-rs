@@ -11,9 +11,12 @@ pub fn ensure_singleton(unique_name: &str) {
         f.push_str(".lockfile");
         f
     };
-    let mut path = PathBuf::new();
-    path.push("/tmp");
-    path.push(filename);
+    let path = {
+        let mut path = PathBuf::new();
+        path.push("/tmp");
+        path.push(filename);
+        path
+    };
 
     log::debug!("Lockfile={}", path.to_str().unwrap());
 
