@@ -739,7 +739,10 @@ pub fn start(mut config: KeyRemapperConfiguration) {
 
     setup_panic_hook();
 
-    ensure_singleton(&config.global_lock_name);
+    // If we don't grab the device, running multiple insntances is okay.
+    if config.grab_devices {
+        ensure_singleton(&config.global_lock_name);
+    }
     gtk::init().unwrap();
 
     process_commandline_args(&mut config);
