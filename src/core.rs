@@ -11,8 +11,10 @@ use std::{
 };
 
 use clap::{App, Arg};
+use libc::SIGTSTP;
 use parking_lot::ReentrantMutex;
 use rand::prelude::*;
+use signal_hook::iterator::Signals;
 
 use crate::{
     evdev::{
@@ -719,11 +721,26 @@ fn setup_panic_hook() {
     }));
 }
 
-fn process_clean_up(key_remapper: &KeyRemapper) {
+fn setup_signal_handler(key_remapper: KeyRemapper) {
+    let mut signals = Signals::new(&[SIGTSTP]).unwrap();
+    thread::spawn(move || {
+        for _sig in signals.forever() {
+            eprintln!("SIGTSTP caught, cleaning up...");
+            process_clean_up(&key_remapper, false);
+            thread::sleep(Duration::from_millis(10));
+            eprintln!("Killing itself...");
+            std::process::exit(2);
+        }
+    });
+}
+
+fn process_clean_up(key_remapper: &KeyRemapper, with_delay: bool) {
     // Reset the outgoing keys.
     // It seems like sometimes the "reset" events won't be sent..? So tried adding a 200ms sleep.
     key_remapper.reset_out();
-    thread::sleep(Duration::from_millis(200));
+    if with_delay {
+        thread::sleep(Duration::from_millis(200));
+    }
 }
 
 fn restart_process() -> ! {
@@ -753,6 +770,8 @@ pub fn start(mut config: KeyRemapperConfiguration) {
 
     let key_remapper = KeyRemapper::new(config.clone());
 
+    setup_signal_handler(key_remapper.clone());
+
     // Keep a clone so we can reset the output uinput devices at the end.
     let key_remapper_clone = key_remapper.clone();
 
@@ -766,7 +785,7 @@ pub fn start(mut config: KeyRemapperConfiguration) {
         .expect("Unable to start I/O thread");
 
     gtk::main();
-    process_clean_up(&key_remapper_clone);
+    process_clean_up(&key_remapper_clone, true);
 
     if DO_RESTART_PROCESS.load(Ordering::SeqCst) {
         restart_process();
