@@ -770,7 +770,9 @@ pub fn start(mut config: KeyRemapperConfiguration) {
 
     let key_remapper = KeyRemapper::new(config.clone());
 
-    setup_signal_handler(key_remapper.clone());
+    if config.grab_devices {
+        setup_signal_handler(key_remapper.clone());
+    }
 
     // Keep a clone so we can reset the output uinput devices at the end.
     let key_remapper_clone = key_remapper.clone();
