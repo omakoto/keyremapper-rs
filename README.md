@@ -42,7 +42,7 @@ See also:
 
 ### 2. Install dependeencies
 
-- `sudo apt install -y libappindicator3-dev libgtk-3-dev libevdev-dev libudev-dev libwnck-3-dev`
+- `sudo apt install -y libappindicator3-dev libgtk-3-dev libevdev-dev libudev-dev`
 
 ## Samples
  
