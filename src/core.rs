@@ -44,6 +44,8 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
     let device_name_re = config.device_name_regex_re.as_ref().unwrap();
     let id_re = config.id_regex_re.as_ref().unwrap();
 
+    let callbacks = config.callbacks_cloned();
+
     let filter = |device: &evdev::EvdevDevice| {
         if device.name().starts_with(&config.uinput_devices_prefix) {
             return false;
@@ -58,25 +60,32 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
         }
 
         // Filter by supported event types.
-        if config.use_non_keyboard {
-            return true; // Select all devices.
-        }
-        if device.supported_events().abs_info.len() > 0 {
-            return false; // Don't use devices with abs_info.
-        }
         let mut select = false;
-        for event_type in device.supported_events().events.keys() {
-            match event_type {
-                EventType::EV_KEY => {
-                    select = true;
-                }
-                EventType::EV_SYN | EventType::EV_MSC | EventType::EV_LED | EventType::EV_REP => {
-                    // They are okay for a keyboard device to have.
-                }
-                _ => {
-                    return false;
+        if config.use_non_keyboard {
+            select = true; // Select all devices.
+        } else if device.supported_events().abs_info.len() > 0 {
+            return false;
+        } else {
+            for event_type in device.supported_events().events.keys() {
+                match event_type {
+                    EventType::EV_KEY => {
+                        select = true;
+                    }
+                    EventType::EV_SYN | EventType::EV_MSC | EventType::EV_LED | EventType::EV_REP => {
+                        // They are okay for a keyboard device to have.
+                    }
+                    _ => { 
+                        return false;
+                    }
                 }
             }
+        }
+        if !select {
+            return false;
+        }
+
+        if !(*callbacks.on_filter_device)(&device) {
+            return false;
         }
 
         if device.name().starts_with(UINPUT_DEVICE_NAME_PREFIX) {
@@ -86,7 +95,7 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
             }
         }
 
-        return select;
+        return true;
     };
 
     for mut device in evdev::list_devices_from_path_with_filter("/dev/input/event*", filter)? {
