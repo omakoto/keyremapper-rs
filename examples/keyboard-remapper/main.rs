@@ -346,7 +346,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if ev.code == ec::KEY_CAPSLOCK => {}
 
             // In alt-mode, don't use alnum keys as-is.
-            _ if state.alt_mode && ALNUM_KEYS.contains(&ev.code) => {}
+            _ if state.alt_mode && ev.is_any_key_on(ALNUM_KEYS, "") => {}
 
             // Default: Just send the original key event.
             _ => km.send_event(&ev),
