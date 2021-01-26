@@ -42,7 +42,7 @@ impl KeyRemapperCallbacks {
             on_init_args: Arc::new(|app| app),
             on_args_parsed: Arc::new(|_| {}),
             on_start: Arc::new(|_| {}),
-            on_filter_device: Arc::new(|_| { true }),
+            on_filter_device: Arc::new(|_| true),
             on_devices_detected: Arc::new(|_, _| {}),
             on_devices_not_found: Arc::new(|_| {}),
             on_devices_lost: Arc::new(|_| {}),

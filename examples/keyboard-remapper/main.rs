@@ -1,7 +1,12 @@
 //! Reampper for the main keyboard
 extern crate lazy_static;
 
-use std::{cell::RefCell, error::Error, sync::Arc, time::Duration};
+use std::{
+    cell::RefCell,
+    error::Error,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use clap::{value_t, Arg};
 use ec::KEY_FORWARD;
@@ -101,13 +106,15 @@ struct State {
     normal_scroll_internal: Duration,
     fast_scroll_interval: Duration,
     first_scroll_delay: Duration,
+
+    alt_mode: bool,
+    last_esc_press_instant: Option<Instant>,
 }
 
 impl State {}
 
 lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
-    // static ref STATE: State = State::default();
 }
 
 // Returns true if the active window is Chrome.
@@ -248,21 +255,73 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Special handling for ESC: Don't send "ESC-press" on key-down, but instead send it on key-*up*, unless
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
-        if ev.code == ec::KEY_ESC {
+        if !state.alt_mode && ev.code == ec::KEY_ESC {
             if ev.is_key_down_event() {
                 state.pending_esc_pressed = true;
             }
             if ev.is_key_up_event() && state.pending_esc_pressed {
                 state.pending_esc_pressed = false;
-                km.press_key(ec::KEY_ESC, "*");
+
+                if !state.alt_mode {
+                    let now = Instant::now();
+                    match state.last_esc_press_instant {
+                        Some(t) if now.duration_since(t) <= Duration::from_millis(250) => {
+                            state.alt_mode = true;
+                            km.show_notiication_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
+                        }
+                        _ => {
+                            state.last_esc_press_instant = Some(now);
+
+                            km.press_key(ec::KEY_ESC, "*");
+                        }
+                    }
+                }
             }
             return;
         }
 
         // If other keys (than ESC) are pressed, clear pending_esc_pressed, but don't do so on modifier key presses, in order to
         // allow combos like "ESC+ctrl+Backspace".
-        if !MODIFIER_KEYS.contains(&ev.code) {
+        if state.pending_esc_pressed && !MODIFIER_KEYS.contains(&ev.code) {
             state.pending_esc_pressed = false;
+        }
+
+        // ESC or ENTER will finish the ALT mode.
+        if state.alt_mode && ev.is_any_key_down(&[ec::KEY_ENTER, ec::KEY_ESC], "*") {
+            state.alt_mode = false;
+            km.show_notiication("Left ALT mode");
+            return;
+        }
+
+        // Handle both the ALT and normal modes.
+        match 0 {
+            // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
+            _ if ev.is_any_key(&[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], "*") && (state.alt_mode || km.is_esc_on()) => {
+                let speed = match 0 {
+                    _ if ev.is_key_up_event() => 0,
+                    _ if ev.is_any_key_down(&[ec::KEY_K, ec::KEY_C], "*") => 1,
+                    _ if ev.is_any_key_down(&[ec::KEY_J, ec::KEY_SPACE], "*") => -1,
+                    _ => return,
+                };
+                state.wheeler.as_mut().unwrap().set_vwheel(speed);
+                return;
+            }
+            _ if ev.is_any_key(&[ec::KEY_L, ec::KEY_H], "*") && (state.alt_mode || km.is_esc_on()) => {
+                let speed = match 0 {
+                    _ if ev.is_key_up_event() => 0,
+                    _ if ev.is_any_key_down(&[ec::KEY_L], "*") => 1,
+                    _ if ev.is_any_key_down(&[ec::KEY_H], "*") => -1,
+                    _ => return,
+                };
+                state.wheeler.as_mut().unwrap().set_hwheel(speed);
+                return;
+            }
+            _ => {}
+        }
+
+        if state.alt_mode {
+            // Ignore other keys in ATL mode.
+            return;
         }
 
         match 0 {
@@ -288,26 +347,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // ESC + caps lock -> caps lock, in case I ever need it.
             _ if ev.is_key_on(ec::KEY_CAPSLOCK, "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
-
-            // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
-            _ if ev.is_any_key(&[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], "*") && km.is_esc_on() => {
-                let speed = match 0 {
-                    _ if ev.is_key_up_event() => 0,
-                    _ if ev.is_any_key_down(&[ec::KEY_K, ec::KEY_C], "*") => 1,
-                    _ if ev.is_any_key_down(&[ec::KEY_J, ec::KEY_SPACE], "*") => -1,
-                    _ => return,
-                };
-                state.wheeler.as_mut().unwrap().set_vwheel(speed);
-            }
-            _ if ev.is_any_key(&[ec::KEY_L, ec::KEY_H], "*") && km.is_esc_on() => {
-                let speed = match 0 {
-                    _ if ev.is_key_up_event() => 0,
-                    _ if ev.is_any_key_down(&[ec::KEY_L], "*") => 1,
-                    _ if ev.is_any_key_down(&[ec::KEY_H], "*") => -1,
-                    _ => return,
-                };
-                state.wheeler.as_mut().unwrap().set_hwheel(speed);
-            }
 
             // ESC + other alphabet -> ctrl + shift + the key.
             _ if ev.is_any_key_on(ALPHABET_KEYS, "e") => km.press_key(ev.code, "cs"),

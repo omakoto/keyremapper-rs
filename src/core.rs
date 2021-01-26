@@ -74,7 +74,7 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
                     EventType::EV_SYN | EventType::EV_MSC | EventType::EV_LED | EventType::EV_REP => {
                         // They are okay for a keyboard device to have.
                     }
-                    _ => { 
+                    _ => {
                         return false;
                     }
                 }
