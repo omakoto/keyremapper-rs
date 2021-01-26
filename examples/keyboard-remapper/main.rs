@@ -305,7 +305,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     _ => return,
                 };
                 state.wheeler.as_mut().unwrap().set_vwheel(speed);
-                return;
             }
             _ if ev.is_any_key(&[ec::KEY_L, ec::KEY_H], "*") && (state.alt_mode || km.is_esc_on()) => {
                 let speed = match 0 {
@@ -315,7 +314,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     _ => return,
                 };
                 state.wheeler.as_mut().unwrap().set_hwheel(speed);
-                return;
             }
 
             // Chrome only -- F5 / F6 as BACK / FORWARD
