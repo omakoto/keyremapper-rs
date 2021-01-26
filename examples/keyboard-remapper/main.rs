@@ -291,7 +291,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // ESC or ENTER will finish the ALT mode.
         if state.alt_mode && ev.is_any_key_down(&[ec::KEY_ENTER, ec::KEY_ESC], "*") {
             state.alt_mode = false;
-            km.show_notiication("Left ALT mode");
+            km.show_notiication_with_timeout("Left ALT mode", Duration::from_millis(100));
             return;
         }
 
