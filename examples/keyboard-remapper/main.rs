@@ -49,7 +49,17 @@ static VERSATILE_KEYS: &[i32] = &[
     ec::KEY_ENTER,
 ];
 
-static ALPHABET_KEYS: &[i32] = &[
+static ALNUM_KEYS: &[i32] = &[
+    ec::KEY_0,
+    ec::KEY_1,
+    ec::KEY_2,
+    ec::KEY_3,
+    ec::KEY_4,
+    ec::KEY_5,
+    ec::KEY_6,
+    ec::KEY_7,
+    ec::KEY_8,
+    ec::KEY_9,
     ec::KEY_A,
     ec::KEY_B,
     ec::KEY_C,
@@ -108,7 +118,6 @@ struct State {
     first_scroll_delay: Duration,
 
     alt_mode: bool,
-    last_esc_press_instant: Option<Instant>,
 }
 
 impl State {}
@@ -256,26 +265,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
         if !state.alt_mode && ev.code == ec::KEY_ESC {
+            // Shift + ESC -> Enter ALT mode
+            if ev.is_key_down(ec::KEY_ESC, "se") {
+                state.alt_mode = true;
+                km.show_notiication_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
+                return;
+            }
+
             if ev.is_key_down_event() {
                 state.pending_esc_pressed = true;
             }
             if ev.is_key_up_event() && state.pending_esc_pressed {
                 state.pending_esc_pressed = false;
-
-                if !state.alt_mode {
-                    let now = Instant::now();
-                    match state.last_esc_press_instant {
-                        Some(t) if now.duration_since(t) <= Duration::from_millis(250) => {
-                            state.alt_mode = true;
-                            km.show_notiication_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
-                        }
-                        _ => {
-                            state.last_esc_press_instant = Some(now);
-
-                            km.press_key(ec::KEY_ESC, "*");
-                        }
-                    }
-                }
+                km.press_key(ec::KEY_ESC, "*");
             }
             return;
         }
@@ -293,7 +295,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             return;
         }
 
-        // Handle both the ALT and normal modes.
         match 0 {
             // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
             _ if ev.is_any_key(&[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], "*") && (state.alt_mode || km.is_esc_on()) => {
@@ -316,25 +317,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                 state.wheeler.as_mut().unwrap().set_hwheel(speed);
                 return;
             }
-            _ => {}
-        }
 
-        if state.alt_mode {
-            // Ignore other keys in ATL mode.
-            return;
-        }
+            // Chrome only -- F5 / F6 as BACK / FORWARD
+            _ if ev.is_key_on(ec::KEY_F5, "") && is_chrome() => km.press_key(ec::KEY_BACK, ""),
+            _ if ev.is_key_on(ec::KEY_F6, "") && is_chrome() => km.press_key(ec::KEY_FORWARD, ""),
 
-        match 0 {
             // ESC or shift + backspace -> delete
             _ if ev.is_key_on(ec::KEY_BACKSPACE, "e") => km.press_key(ec::KEY_DELETE, ""),
             _ if ev.is_key_on(ec::KEY_BACKSPACE, "s") => km.press_key(ec::KEY_DELETE, ""),
 
             // See VERSATILE_KEYS.
             _ if ev.is_any_key_on(VERSATILE_KEYS, "e") => km.press_key(ev.code, "acsw"),
-
-            // Chrome only -- F5 / F6 as BACK / FORWARD
-            _ if ev.is_key_on(ec::KEY_F5, "") && is_chrome() => km.press_key(ec::KEY_BACK, ""),
-            _ if ev.is_key_on(ec::KEY_F6, "") && is_chrome() => km.press_key(ec::KEY_FORWARD, ""),
 
             // ESC + home/end -> ATL+Left/Right (back / forward)
             _ if ev.is_key_on(ec::KEY_HOME, "e") => km.press_key(ec::KEY_LEFT, "a"),
@@ -349,10 +342,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if ev.is_key_on(ec::KEY_CAPSLOCK, "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
 
             // ESC + other alphabet -> ctrl + shift + the key.
-            _ if ev.is_any_key_on(ALPHABET_KEYS, "e") => km.press_key(ev.code, "cs"),
+            _ if ev.is_any_key_on(ALNUM_KEYS, "e") => km.press_key(ev.code, "cs"),
 
             // Don't use capslock alone.
             _ if ev.code == ec::KEY_CAPSLOCK => {}
+
+            // In alt-mode, don't use alnum keys as-is.
+            _ if state.alt_mode && ALNUM_KEYS.contains(&ev.code) => {}
 
             // Default: Just send the original key event.
             _ => km.send_event(&ev),
