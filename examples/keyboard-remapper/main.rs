@@ -265,8 +265,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
         if !state.alt_mode && ev.code == ec::KEY_ESC {
-            // Ctrl + ESC -> Enter ALT mode
-            if ev.is_key_down(ec::KEY_ESC, "ce") {
+            // Shift + Ctrl + ESC -> Enter ALT mode
+            if ev.is_key_down(ec::KEY_ESC, "sce") {
                 state.alt_mode = true;
                 km.show_notiication_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
                 return;
