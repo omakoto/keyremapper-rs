@@ -18,28 +18,3 @@ pub(crate) fn string_from_c_str(s: *const ::std::os::raw::c_char) -> String {
 pub(crate) fn c_string_from_str(s: &str) -> CString {
     CString::new(s).expect("String contains a NULL character")
 }
-
-extern "C" {
-    /// returns *WnckScreen
-    pub fn wnck_screen_get_default() -> *mut c_void;
-
-    /// takes *WnckScreen
-    pub fn wnck_screen_force_update(screen: *mut c_void);
-
-    ///  takes *WnckScreen and returns *WnckWindow
-    pub fn wnck_screen_get_active_window(screen: *mut c_void) -> *mut c_void;
-
-    ///  takes *WnckScreen
-    pub fn wnck_window_get_name(window: *mut c_void) -> *const c_char;
-
-    ///  takes *WnckScreen
-    pub fn wnck_window_get_pid(window: *mut c_void) -> c_int;
-
-    ///  takes *WnckScreen
-    pub fn wnck_window_get_class_group_name(window: *mut c_void) -> *const c_char;
-
-    ///  takes *WnckScreen
-    pub fn wnck_window_get_class_instance_name(window: *mut c_void) -> *const c_char;
-
-    pub fn XInitThreads() -> libc::c_uint;
-}

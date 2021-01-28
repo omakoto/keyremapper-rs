@@ -55,7 +55,7 @@ phf = { version = "0.8.0", features = ["macros"] }
 rand="0.8.2"
 regex = "1.4.3"
 signal-hook = "0.3.4"
-x11rb = "0.3.0"
+# x11rb = "0.3.0"
 
 [build-dependencies]
 # gtk depends on this version.
