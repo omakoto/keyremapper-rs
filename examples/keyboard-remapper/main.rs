@@ -9,7 +9,6 @@ use std::{
 };
 
 use clap::{value_t, Arg};
-use ec::KEY_FORWARD;
 use keyremapper::{
     evdev::{self, ec},
     res::get_gio_resource_as_file,
@@ -49,7 +48,8 @@ static VERSATILE_KEYS: &[i32] = &[
     ec::KEY_ENTER,
 ];
 
-static ALNUM_KEYS: &[i32] = &[
+// printable character keys on the 101 keyboard.
+static PRINTABLE_KEYS: &[i32] = &[
     ec::KEY_0,
     ec::KEY_1,
     ec::KEY_2,
@@ -86,6 +86,17 @@ static ALNUM_KEYS: &[i32] = &[
     ec::KEY_X,
     ec::KEY_Y,
     ec::KEY_Z,
+    ec::KEY_GRAVE,
+    ec::KEY_MINUS,
+    ec::KEY_EQUAL,
+    ec::KEY_LEFTBRACE,
+    ec::KEY_RIGHTBRACE,
+    ec::KEY_BACKSLASH,
+    ec::KEY_SEMICOLON,
+    ec::KEY_APOSTROPHE,
+    ec::KEY_COMMA,
+    ec::KEY_DOT,
+    ec::KEY_SLASH,
 ];
 
 static MODIFIER_KEYS: &[i32] = &[
@@ -265,8 +276,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
         if !state.alt_mode && ev.code == ec::KEY_ESC {
-            // Shift + Ctrl + ESC -> Enter ALT mode
-            if ev.is_key_down(ec::KEY_ESC, "sce") {
+            // Ctrl + ESC -> Enter ALT mode
+            if ev.is_key_down(ec::KEY_ESC, "ce") {
                 state.alt_mode = true;
                 km.show_notiication_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
                 return;
@@ -340,13 +351,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if ev.is_key_on(ec::KEY_CAPSLOCK, "e*") => km.press_key(ec::KEY_CAPSLOCK, "c"),
 
             // ESC + other alphabet -> ctrl + shift + the key.
-            _ if ev.is_any_key_on(ALNUM_KEYS, "e") => km.press_key(ev.code, "cs"),
+            _ if ev.is_any_key_on(PRINTABLE_KEYS, "e") => km.press_key(ev.code, "cs"),
 
             // Don't use capslock alone.
             _ if ev.code == ec::KEY_CAPSLOCK => {}
 
-            // In alt-mode, don't use alnum keys as-is.
-            _ if state.alt_mode && ev.is_any_key_on(ALNUM_KEYS, "") => {}
+            // In alt-mode, don't use printable char keys as-is.
+            _ if state.alt_mode && ev.is_any_key_on(PRINTABLE_KEYS, "") => {}
 
             // Default: Just send the original key event.
             _ => km.send_event(&ev),
