@@ -135,6 +135,18 @@ impl State {}
 
 lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
+
+    static ref ICON_MAIN: ResourceIcon = ResourceIcon::from_bytes(
+        NAME,
+        "/keyremapper/resources/keyboard.png",
+        include_bytes!("icons.bin"),
+    );
+
+    static ref ICON_ALT: ResourceIcon = ResourceIcon::from_bytes(
+        NAME,
+        "/keyremapper/resources/keyboard-alt.png",
+        include_bytes!("icons.bin"),
+    );
 }
 
 // Returns true if the active window is Chrome.
@@ -157,11 +169,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(ResourceIcon::from_bytes(
-            NAME,
-            "/keyremapper/resources/keyboard.png",
-            include_bytes!("icons.bin"),
-        ))
+        .set_icon(ICON_MAIN.get_path())
         .set_id_regex(ID_RE)
         .set_use_non_keyboard(true)
         .set_grab(true)
@@ -277,7 +285,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             // Ctrl + ESC -> Enter ALT mode
             if ev.is_key_down(ec::KEY_ESC, "ce") {
                 state.alt_mode = true;
-                km.show_notiication_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
+                km.set_icon(ICON_ALT.get_path());
+                km.show_notification_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
                 return;
             }
 
@@ -300,7 +309,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // ESC or ENTER will finish the ALT mode.
         if state.alt_mode && ev.is_any_key_down(&[ec::KEY_ENTER, ec::KEY_ESC], "*") {
             state.alt_mode = false;
-            km.show_notiication_with_timeout("Left ALT mode", Duration::from_millis(100));
+            km.set_icon(ICON_MAIN.get_path());
+            km.show_notification_with_timeout("Left ALT mode", Duration::from_millis(100));
             return;
         }
 

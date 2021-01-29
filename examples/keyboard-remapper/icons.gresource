@@ -2,5 +2,6 @@
 <gresources>
 	<gresource prefix="/keyremapper">
 		<file>resources/keyboard.png</file>
+		<file>resources/keyboard-alt.png</file>
 	</gresource>
 </gresources>

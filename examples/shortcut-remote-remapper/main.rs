@@ -113,7 +113,7 @@ impl Remapper {
             body.push_str(":  ");
             body.push_str(desc)
         }
-        km.show_notiication_with_timeout(&body, Duration::from_secs(5));
+        km.show_notification_with_timeout(&body, Duration::from_secs(5));
     }
 
     fn on_start(&self, km: &KeyRemapper) {

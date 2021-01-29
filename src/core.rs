@@ -213,10 +213,14 @@ impl KeyRemapperUi {
         });
     }
 
-    fn show_notiication_with_timeout(&mut self, message: &str, timeout: Duration) {
+    fn show_notification_with_timeout(&mut self, message: &str, timeout: Duration) {
         let notification = &mut self.notification;
         notification.body(message).timeout(Timeout::Milliseconds(timeout.as_millis() as u32));
         notification.update();
+    }
+
+    fn set_icon(&mut self, icon: PathBuf) {
+        self.app_indicator.as_mut().unwrap().set_icon(&(icon.into_os_string().into_string().unwrap()))
     }
 }
 
@@ -301,14 +305,23 @@ impl KeyRemapper {
     }
 
     /// Show a notification with the given message.
-    pub fn show_notiication(&self, message: &str) {
-        self.show_notiication_with_timeout(message, Duration::from_secs(3))
+    pub fn show_notification(&self, message: &str) {
+        self.show_notification_with_timeout(message, Duration::from_secs(3))
     }
 
     /// Show a notification with the given message with a custom timeout.
-    pub fn show_notiication_with_timeout(&self, message: &str, timeout: Duration) {
+    pub fn show_notification_with_timeout(&self, message: &str, timeout: Duration) {
         let ui = self.ui.lock();
-        ui.borrow_mut().show_notiication_with_timeout(message, timeout);
+        ui.borrow_mut().show_notification_with_timeout(message, timeout);
+    }
+
+    pub fn set_icon<T: Into<PathBuf>>(&self, icon: T) {
+        let clone = self.clone();
+        let icon_path: PathBuf = icon.into();
+        glib::MainContext::default().invoke(move || {
+            let ui = clone.ui.lock();
+            ui.borrow_mut().set_icon(icon_path);
+        });
     }
 
     fn ensure_uinput(&self) {
@@ -460,86 +473,6 @@ impl KeyRemapper {
         self.restore_out_modifier_state(out_modifier_state);
     }
 
-    // /// Return true if given modifers are currently pressed. (On the input device, not on the output uinput device.)
-    // /// - `'a'` Alt
-    // /// - `'c'` Ctrl
-    // /// - `'s'` Shift
-    // /// - `'w'` Meta / Windows key
-    // /// - `'e'` ESC
-    // /// - `'*'` Add this to ignore the modifiers that are not specified. e.g. `"ac"` normally means both Alt and Ctrl
-    // ///   must be pressed *and* the other modifiers are rnot pressed, while `"ac*"` means both Alt and Ctrl
-    // ///   must be pressed but don't care if the other modifiers are pressed.
-    // pub fn are_modifiers_on(&self, modifiers: &str) -> bool {
-    //     validate_modifiers(modifiers, "acswe*");
-
-    //     let ignore_other_modifiers = modifiers.contains('*');
-
-    //     let alt = modifiers.contains('a');
-    //     let ctrl = modifiers.contains('c');
-    //     let shift = modifiers.contains('s');
-    //     let win = modifiers.contains('w');
-    //     let esc = modifiers.contains('e'); // Allow ESC to be used as a modifier.
-
-    //     if self.is_alt_on() != alt && (alt || !ignore_other_modifiers) {
-    //         return false;
-    //     }
-
-    //     if self.is_ctrl_on() != ctrl && (ctrl || !ignore_other_modifiers) {
-    //         return false;
-    //     }
-
-    //     if self.is_shift_on() != shift && (shift || !ignore_other_modifiers) {
-    //         return false;
-    //     }
-
-    //     if self.is_winkey_on() != win && (win || !ignore_other_modifiers) {
-    //         return false;
-    //     }
-
-    //     if self.is_esc_on() != esc && (esc || !ignore_other_modifiers) {
-    //         return false;
-    //     }
-
-    //     return true;
-    // }
-
-    // /// Return true if the given event is of the given key and value is 1 (pressed) or 2 (repeat).
-    // #[inline]
-    // pub fn key_on(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
-    //     return event.is_key_on(key) && self.are_modifiers_on(modifiers);
-    // }
-
-    // /// Return true if the given event is of the given key and value is 1 (pressed), but not 2 (repeat).
-    // #[inline]
-    // pub fn key_down(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
-    //     return event.is_key_down(key) && self.are_modifiers_on(modifiers);
-    // }
-
-    // /// Return true if the given event is of the given key and value is 0 (released).
-    // #[inline]
-    // pub fn key_up(&self, event: &evdev::InputEvent, key: i32, modifiers: &str) -> bool {
-    //     return event.is_key_up(key) && self.are_modifiers_on(modifiers);
-    // }
-
-    // /// Return true if the given event is any of the given keys and value is 1 (pressed) or 2 (repeat).
-    // #[inline]
-    // pub fn any_key_on(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
-    //     return event.is_any_key_on(keys) && self.are_modifiers_on(modifiers);
-    // }
-
-    // /// Return true if the given event is any of the given keys and value is 1 (pressed), but not 2 (repeat).
-    // #[inline]
-    // pub fn any_key_down(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
-    //     return event.is_any_key_down(keys) && self.are_modifiers_on(modifiers);
-    // }
-
-    // /// Return true if the given event is any of the given keys and value is 0 (released).
-    // #[inline]
-    // pub fn any_key_up(&self, event: &evdev::InputEvent, keys: &[i32], modifiers: &str) -> bool {
-    //     return event.is_any_key_up(keys) && self.are_modifiers_on(modifiers);
-    // }
-
-    // TODO Support changing the tray icon.
     // TODO Support adding menu items.
 }
 
@@ -595,7 +528,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
 
         if input.devices.len() == 0 {
             log::info!("No device found");
-            key_remapper.show_notiication("No device found");
+            key_remapper.show_notification("No device found");
             (*callbacks.on_devices_not_found)(&key_remapper);
         } else {
             let mut message = "Device(s) detected".to_string();
@@ -605,7 +538,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
                 message.push_str("\n - ");
                 message.push_str(&device.name());
             }
-            key_remapper.show_notiication(&message);
+            key_remapper.show_notification(&message);
 
             (*callbacks.on_devices_detected)(&key_remapper, &input.devices);
         }
@@ -634,7 +567,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
 
                 let msg = "Devices connected or disconnected";
                 log::info!("{}", msg);
-                key_remapper.show_notiication(msg);
+                key_remapper.show_notification(msg);
                 (*callbacks.on_devices_lost)(&key_remapper);
 
                 input.release_devices(); // Close all the input devices.

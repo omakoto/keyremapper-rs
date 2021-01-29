@@ -68,28 +68,28 @@ fn get_gio_resource_as_file(exe_unique_name: &str, res_path: &str, resource_fetc
 
 #[derive(Debug, Clone)]
 pub struct ResourceIcon {
-    exe_unique_name: String,
-    res_path: String,
-    resource_bytes: &'static [u8],
+    path: PathBuf,
 }
 
 impl ResourceIcon {
     pub fn from_bytes(exe_unique_name: &str, res_path: &str, resource_bytes: &'static [u8]) -> ResourceIcon {
+        let bytes = resource_bytes.clone();
         return ResourceIcon {
-            exe_unique_name: exe_unique_name.to_string(),
-            res_path: res_path.to_string(),
-            resource_bytes: resource_bytes,
+            path: get_gio_resource_as_file(&exe_unique_name, &res_path, &move || {
+                let data = glib::Bytes::from(bytes);
+                return gio::Resource::from_data(&data).unwrap();
+            }),
         };
+    }
+
+    pub fn get_path(&self) -> PathBuf {
+        return self.path.clone();
     }
 }
 
 impl Into<PathBuf> for ResourceIcon {
     fn into(self) -> PathBuf {
-        let bytes = self.resource_bytes.clone();
-        return get_gio_resource_as_file(&self.exe_unique_name, &self.res_path, &move || {
-            let data = glib::Bytes::from(bytes);
-            return gio::Resource::from_data(&data).unwrap();
-        });
+        return self.path;
     }
 }
 
