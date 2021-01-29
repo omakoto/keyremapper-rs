@@ -1,11 +1,11 @@
 use gio::{prelude::*, NONE_CANCELLABLE};
-use std::io::prelude::*;
 use std::{
     error::Error,
     fs::{self, File},
     path::PathBuf,
     time::SystemTime,
 };
+use std::{io::prelude::*, path::Path, sync::Arc};
 
 pub(crate) const DEFAULT_ICON_NAME: &str = "/keyremapper/resources/keyboard.png";
 
@@ -71,4 +71,31 @@ pub fn get_gio_resource_as_file(exe_unique_name: &str, res_path: &str, resource_
         log::debug!("File {:?} is up-to-date", file_path);
     }
     return file_path;
+}
+
+#[derive(Debug, Clone)]
+pub struct EmbeddedIcon {
+    exe_unique_name: String,
+    res_path: String,
+    resource_bytes: &'static [u8],
+}
+
+impl EmbeddedIcon {
+    pub fn from_bytes(exe_unique_name: &str, res_path: &str, resource_bytes: &'static [u8]) -> EmbeddedIcon {
+        return EmbeddedIcon {
+            exe_unique_name: exe_unique_name.to_string(),
+            res_path: res_path.to_string(),
+            resource_bytes: resource_bytes,
+        };
+    }
+}
+
+impl Into<PathBuf> for EmbeddedIcon {
+    fn into(self) -> PathBuf {
+        let bytes = self.resource_bytes.clone();
+        return get_gio_resource_as_file(&self.exe_unique_name, &self.res_path, &move || {
+            let data = glib::Bytes::from(bytes);
+            return gio::Resource::from_data(&data).unwrap();
+        });
+    }
 }

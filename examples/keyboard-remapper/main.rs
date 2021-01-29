@@ -11,7 +11,7 @@ use std::{
 use clap::{value_t, Arg};
 use keyremapper::{
     evdev::{self, ec},
-    res::get_gio_resource_as_file,
+    res::{get_gio_resource_as_file, EmbeddedIcon},
     KeyRemapper, KeyRemapperConfiguration,
 };
 
@@ -154,16 +154,20 @@ fn is_chrome() -> bool {
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // Prepare the icon.
-    let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/keyboard.png", &|| {
-        let data = glib::Bytes::from(include_bytes!("icons.bin"));
-        return gio::Resource::from_data(&data).unwrap();
-    });
+    // // Prepare the icon.
+    // let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/keyboard.png", &|| {
+    //     let data = glib::Bytes::from(include_bytes!("icons.bin"));
+    //     return gio::Resource::from_data(&data).unwrap();
+    // });
 
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(icon)
+        .set_icon(EmbeddedIcon::from_bytes(
+            NAME,
+            "/keyremapper/resources/keyboard.png",
+            include_bytes!("icons.bin"),
+        ))
         .set_id_regex(ID_RE)
         .set_use_non_keyboard(true)
         .set_grab(true)
@@ -193,7 +197,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .long("fast-scroll-delay-ms")
                     .value_name("MILLIS")
                     .default_value(FIRST_SCROLL_DELAY)
-                    .help(r#"Delay before fast mouse whell events kick in"#)
+                    .help(r#"Delay before fast mouse wheel events kick in"#)
                     .takes_value(true),
             );
     });
