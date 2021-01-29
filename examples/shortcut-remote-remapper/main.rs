@@ -6,7 +6,7 @@ use std::{cell::RefCell, error::Error, process, sync::Arc, time::Duration};
 use clap::{value_t, Arg};
 use keyremapper::{
     evdev::{self, ec},
-    res::get_gio_resource_as_file,
+    res::ResourceIcon,
     KeyRemapper, KeyRemapperConfiguration,
 };
 use parking_lot::ReentrantMutex;
@@ -178,16 +178,10 @@ lazy_static::lazy_static! {
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // Prepare the icon.
-    let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/10key.png", &|| {
-        let data = glib::Bytes::from(include_bytes!("icons.bin"));
-        return gio::Resource::from_data(&data).unwrap();
-    });
-
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(icon)
+        .set_icon(ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key.png", include_bytes!("icons.bin")))
         .set_id_regex(ID_RE)
         .set_grab(true)
         .set_use_non_keyboard(true)

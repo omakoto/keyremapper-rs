@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     error::Error,
+    path::PathBuf,
     process::{self, Command},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -23,7 +24,8 @@ use crate::{
         uinput::SyncedUinput,
         EventsDescriptor, InputEventTracker,
     },
-    res, select, KeyRemapperConfiguration,
+    res::{self, *},
+    select, KeyRemapperConfiguration,
 };
 
 use crate::singleton::ensure_singleton;
@@ -175,9 +177,7 @@ impl KeyRemapperUi {
             // Set the icon.
             let icon = match &config.icon {
                 Some(path) => path.clone(),
-                None => res::get_gio_resource_as_file("keyremapper-rs", res::DEFAULT_ICON_NAME, &|| {
-                    return res::load_gio_resources();
-                }),
+                None => res::get_default_icon().into(),
             };
 
             indicator.set_icon(&(icon.into_os_string().into_string().unwrap()));

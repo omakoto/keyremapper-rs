@@ -5,7 +5,7 @@ use std::error::Error;
 use ec::EventType;
 use keyremapper::{
     evdev::{self, ec, EventsDescriptor, InputEvent},
-    res::get_gio_resource_as_file,
+    res::ResourceIcon,
     KeyRemapper, KeyRemapperConfiguration,
 };
 
@@ -16,16 +16,10 @@ const ID_RE: &str = "^";
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // Prepare the icon.
-    let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/circle.png", &|| {
-        let data = glib::Bytes::from(include_bytes!("icons.bin"));
-        return gio::Resource::from_data(&data).unwrap();
-    });
-
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(icon)
+        .set_icon(ResourceIcon::from_bytes(NAME, "/keyremapper/resources/circle.png", include_bytes!("icons.bin")))
         .set_id_regex(ID_RE)
         .set_use_non_keyboard(true)
         .set_grab(true)

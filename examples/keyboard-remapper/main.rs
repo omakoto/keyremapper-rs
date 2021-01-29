@@ -11,7 +11,7 @@ use std::{
 use clap::{value_t, Arg};
 use keyremapper::{
     evdev::{self, ec},
-    res::{get_gio_resource_as_file, EmbeddedIcon},
+    res::ResourceIcon,
     KeyRemapper, KeyRemapperConfiguration,
 };
 
@@ -154,16 +154,10 @@ fn is_chrome() -> bool {
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // // Prepare the icon.
-    // let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/keyboard.png", &|| {
-    //     let data = glib::Bytes::from(include_bytes!("icons.bin"));
-    //     return gio::Resource::from_data(&data).unwrap();
-    // });
-
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(EmbeddedIcon::from_bytes(
+        .set_icon(ResourceIcon::from_bytes(
             NAME,
             "/keyremapper/resources/keyboard.png",
             include_bytes!("icons.bin"),

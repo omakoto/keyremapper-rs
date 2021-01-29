@@ -6,7 +6,7 @@ use std::{cell::RefCell, error::Error, sync::Arc};
 use clap::{value_t, App, Arg};
 use keyremapper::{
     evdev::{self, ec, EventsDescriptor, InputEvent},
-    res::get_gio_resource_as_file,
+    res::ResourceIcon,
     KeyRemapper, KeyRemapperConfiguration,
 };
 use parking_lot::Mutex;
@@ -30,12 +30,6 @@ lazy_static::lazy_static! {
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // Prepare the icon.
-    let icon = get_gio_resource_as_file(NAME, "/keyremapper/resources/trackpoint.png", &|| {
-        let data = glib::Bytes::from(include_bytes!("icons.bin"));
-        return gio::Resource::from_data(&data).unwrap();
-    });
-
     let mut supported_events = EventsDescriptor::default();
     supported_events
         .events
@@ -45,7 +39,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(icon)
+        .set_icon(ResourceIcon::from_bytes(
+            NAME,
+            "/keyremapper/resources/trackpoint.png",
+            include_bytes!("icons.bin"),
+        ))
         .set_id_regex(ID_RE)
         .set_grab(true)
         .set_use_non_keyboard(true)

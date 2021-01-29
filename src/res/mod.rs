@@ -1,18 +1,11 @@
 use gio::{prelude::*, NONE_CANCELLABLE};
+use std::io::prelude::*;
 use std::{
     error::Error,
     fs::{self, File},
     path::PathBuf,
     time::SystemTime,
 };
-use std::{io::prelude::*, path::Path, sync::Arc};
-
-pub(crate) const DEFAULT_ICON_NAME: &str = "/keyremapper/resources/keyboard.png";
-
-pub(crate) fn load_gio_resources() -> gio::Resource {
-    let data = glib::Bytes::from(include_bytes!("icons.bin"));
-    return gio::Resource::from_data(&data).unwrap();
-}
 
 type ResourcesFetcher = dyn Fn() -> gio::Resource;
 
@@ -50,7 +43,7 @@ fn extract_resources(file_path: &PathBuf, res_path: &str, resource_fetcher: &Res
     };
 }
 
-pub fn get_gio_resource_as_file(exe_unique_name: &str, res_path: &str, resource_fetcher: &ResourcesFetcher) -> PathBuf {
+fn get_gio_resource_as_file(exe_unique_name: &str, res_path: &str, resource_fetcher: &ResourcesFetcher) -> PathBuf {
     let file_path = {
         let mut dir = std::env::temp_dir();
         dir.push(exe_unique_name);
@@ -74,15 +67,15 @@ pub fn get_gio_resource_as_file(exe_unique_name: &str, res_path: &str, resource_
 }
 
 #[derive(Debug, Clone)]
-pub struct EmbeddedIcon {
+pub struct ResourceIcon {
     exe_unique_name: String,
     res_path: String,
     resource_bytes: &'static [u8],
 }
 
-impl EmbeddedIcon {
-    pub fn from_bytes(exe_unique_name: &str, res_path: &str, resource_bytes: &'static [u8]) -> EmbeddedIcon {
-        return EmbeddedIcon {
+impl ResourceIcon {
+    pub fn from_bytes(exe_unique_name: &str, res_path: &str, resource_bytes: &'static [u8]) -> ResourceIcon {
+        return ResourceIcon {
             exe_unique_name: exe_unique_name.to_string(),
             res_path: res_path.to_string(),
             resource_bytes: resource_bytes,
@@ -90,7 +83,7 @@ impl EmbeddedIcon {
     }
 }
 
-impl Into<PathBuf> for EmbeddedIcon {
+impl Into<PathBuf> for ResourceIcon {
     fn into(self) -> PathBuf {
         let bytes = self.resource_bytes.clone();
         return get_gio_resource_as_file(&self.exe_unique_name, &self.res_path, &move || {
@@ -98,4 +91,8 @@ impl Into<PathBuf> for EmbeddedIcon {
             return gio::Resource::from_data(&data).unwrap();
         });
     }
+}
+
+pub fn get_default_icon() -> ResourceIcon {
+    return ResourceIcon::from_bytes("keyremapper-rs.default.res", "/keyremapper/resources/keyboard.png", include_bytes!("icons.bin"));
 }
