@@ -105,7 +105,7 @@ fn test_input_event_tracker() {
     assert_eq!(0, et.key_state(0));
     assert_eq!(0, et.key_state(1));
 
-    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
+    assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
     assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0)));
     assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1)));
     assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2)));
@@ -114,7 +114,7 @@ fn test_input_event_tracker() {
     et.on_event_sent(&InputEvent::new(EventType::EV_KEY, 1, 1));
     et.on_event_sent(&InputEvent::new_syn_report());
 
-    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
+    assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
     assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0)));
     assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1)));
     assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2)));
@@ -127,7 +127,7 @@ fn test_input_event_tracker() {
         et2.on_event_sent(&InputEvent::new_syn_report());
     }
 
-    assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
+    assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_SYN, 0, 0)));
     assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 0)));
     assert_eq!(false, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 1)));
     assert_eq!(true, et.should_send(&InputEvent::new(EventType::EV_KEY, 1, 2)));
