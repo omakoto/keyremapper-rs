@@ -177,7 +177,7 @@ impl KeyRemapperUi {
             // Set the icon.
             let icon = match &config.icon {
                 Some(path) => path.clone(),
-                None => res::get_default_icon().into(),
+                None => res::get_default_icon(),
             };
 
             indicator.set_icon(&(icon.into_os_string().into_string().unwrap()));

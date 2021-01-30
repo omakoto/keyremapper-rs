@@ -6,7 +6,7 @@ use std::{cell::RefCell, error::Error, sync::Arc};
 use clap::{value_t, App, Arg};
 use keyremapper::{
     evdev::{self, ec, EventsDescriptor, InputEvent},
-    res::ResourceIcon,
+    res::Resources,
     KeyRemapper, KeyRemapperConfiguration,
 };
 use parking_lot::Mutex;
@@ -39,11 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(ResourceIcon::from_bytes(
-            NAME,
-            "/keyremapper/resources/trackpoint.png",
-            include_bytes!("icons.bin"),
-        ))
+        .set_icon(Resources::from_bytes(NAME, include_bytes!("icons.bin")).get_icon("/keyremapper/resources/trackpoint.png"))
         .set_id_regex(ID_RE)
         .set_grab(true)
         .set_use_non_keyboard(true)

@@ -4,12 +4,17 @@ extern crate lazy_static;
 use std::{
     cell::RefCell,
     error::Error,
+    path::PathBuf,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use clap::{value_t, Arg};
-use keyremapper::{KeyRemapper, KeyRemapperConfiguration, evdev::{self, ec}, res::{LazyResource, ResourceIcon}};
+use keyremapper::{
+    evdev::{self, ec},
+    res::Resources,
+    KeyRemapper, KeyRemapperConfiguration,
+};
 
 use parking_lot::Mutex;
 
@@ -129,21 +134,21 @@ struct State {
 
 impl State {}
 
+struct Icons {
+    main: PathBuf,
+    alt_mode: PathBuf,
+}
+
 lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
 
-    static ref ICONS: LazyResource = LazyResource::from_bytes(NAME, include_bytes!("icons.bin"));
-    // static ref ICON_MAIN: ResourceIcon = ResourceIcon::from_bytes(
-    //     NAME,
-    //     "/keyremapper/resources/keyboard.png",
-    //     ICONS,
-    // );
-
-    // static ref ICON_ALT: ResourceIcon = ResourceIcon::from_bytes(
-    //     NAME,
-    //     "/keyremapper/resources/keyboard-alt.png",
-    //     ICONS,
-    // );
+    static ref ICONS: Icons = {
+        let mut res = Resources::from_bytes(NAME, include_bytes!("icons.bin"));
+        return Icons {
+            main: res.get_icon("/keyremapper/resources/keyboard.png"),
+            alt_mode: res.get_icon("/keyremapper/resources/keyboard-alt.png"),
+        }
+    };
 }
 
 // Returns true if the active window is Chrome.
@@ -163,12 +168,10 @@ fn is_chrome() -> bool {
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let icons = LazyResource::from_bytes(NAME, include_bytes!("icons.bin"));
-
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(ICON_MAIN.get_path())
+        .set_icon(&ICONS.main)
         .set_id_regex(ID_RE)
         .set_use_non_keyboard(true)
         .set_grab(true)
@@ -284,7 +287,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             // Ctrl + ESC -> Enter ALT mode
             if ev.is_key_down(ec::KEY_ESC, "ce") {
                 state.alt_mode = true;
-                km.set_icon(ICON_ALT.get_path());
+                km.set_icon(&ICONS.alt_mode);
                 km.show_notification_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
                 return;
             }
@@ -308,7 +311,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // ESC or ENTER will finish the ALT mode.
         if state.alt_mode && ev.is_any_key_down(&[ec::KEY_ENTER, ec::KEY_ESC], "*") {
             state.alt_mode = false;
-            km.set_icon(ICON_MAIN.get_path());
+            km.set_icon(&ICONS.main);
             km.show_notification_with_timeout("Left ALT mode", Duration::from_millis(100));
             return;
         }
