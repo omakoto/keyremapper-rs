@@ -6,7 +6,7 @@ use std::{env, process::Command};
 use regex::Regex;
 
 fn compile_resources(src: &str) {
-    println!("{}", src);
+    println!("cargo:rerun-if-changed={}", src);
 
     let dest: String = {
         let mut dest = Regex::new(r#"\.gresource$"#).unwrap().replace(src, "").to_string();

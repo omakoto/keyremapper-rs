@@ -133,19 +133,21 @@ struct State {
 
 impl State {}
 
+const ICONS: &'static [u8] = include_bytes!("icons.bin");
+
 lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
 
     static ref ICON_MAIN: ResourceIcon = ResourceIcon::from_bytes(
         NAME,
         "/keyremapper/resources/keyboard.png",
-        include_bytes!("icons.bin"),
+        ICONS,
     );
 
     static ref ICON_ALT: ResourceIcon = ResourceIcon::from_bytes(
         NAME,
         "/keyremapper/resources/keyboard-alt.png",
-        include_bytes!("icons.bin"),
+        ICONS,
     );
 }
 

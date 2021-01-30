@@ -1,7 +1,7 @@
 //! Keyboard remapper for https://smile.amazon.com/gp/product/B01NC2LEYP
 extern crate lazy_static;
 
-use std::{cell::RefCell, error::Error, process, sync::Arc, time::Duration};
+use std::{cell::RefCell, error::Error, path::PathBuf, process, sync::Arc, time::Duration};
 
 use clap::{value_t, Arg};
 use keyremapper::{
@@ -14,6 +14,19 @@ use parking_lot::ReentrantMutex;
 const NAME: &str = "Shortcut-Remote-Remapper";
 const DEVICE_RE: &str = r#"^UGEE TABLET TABLET KT01$"#;
 const ID_RE: &str = "^";
+
+const ICONS: &'static [u8] = include_bytes!("icons.bin");
+
+lazy_static::lazy_static! {
+    static ref REMAPPER: Arc<ReentrantMutex<RefCell<Remapper>>> =
+        Arc::new(ReentrantMutex::new(RefCell::new(Remapper::new())));
+    static ref ICON_R: ResourceIcon = ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key-r.png", ICONS);
+    static ref ICON_G: ResourceIcon = ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key-g.png", ICONS);
+    static ref ICON_B: ResourceIcon = ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key-b.png", ICONS);
+
+    // Grr, can't make it work.
+    // static ref ALL_ICONS: &'static [PathBuf] = &[ICON_R.get_path(), ICON_G.get_path(), ICON_B.get_path()];
+}
 
 const KEY_LABELS: &'static [&str] = &["1", "2", "3", "4", "5", "6", "7", "8", "9", "Left", "Right", "Button"];
 
@@ -102,7 +115,7 @@ impl Remapper {
         Remapper { mode: 0 }
     }
 
-    fn show_help(&self, km: &KeyRemapper) {
+    fn notify_mode(&self, km: &KeyRemapper) {
         let mode = ALL_MODES[self.mode];
         let mut body = "".to_string();
         for (i, (_, desc)) in mode.iter().enumerate() {
@@ -114,10 +127,16 @@ impl Remapper {
             body.push_str(desc)
         }
         km.show_notification_with_timeout(&body, Duration::from_secs(5));
+
+        km.set_icon(match self.mode {
+            0 => ICON_R.get_path(),
+            1 => ICON_G.get_path(),
+            _ => ICON_B.get_path(),
+        });
     }
 
     fn on_start(&self, km: &KeyRemapper) {
-        self.show_help(km);
+        self.notify_mode(km);
     }
 
     fn remap(&mut self, km: &KeyRemapper, _device: &evdev::EvdevDevice, ev: &evdev::InputEvent) {
@@ -149,7 +168,7 @@ impl Remapper {
             let new_mode = (-to_key as usize) - 1;
             log::info!("Chaning mode to {}", new_mode);
             self.mode = new_mode;
-            self.show_help(km);
+            self.notify_mode(km);
             return;
         }
 
@@ -170,18 +189,13 @@ impl Remapper {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref REMAPPER: Arc<ReentrantMutex<RefCell<Remapper>>> =
-        Arc::new(ReentrantMutex::new(RefCell::new(Remapper::new())));
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key.png", include_bytes!("icons.bin")))
+        .set_icon(ICON_R.get_path())
         .set_id_regex(ID_RE)
         .set_grab(true)
         .set_use_non_keyboard(true)

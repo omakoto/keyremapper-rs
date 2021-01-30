@@ -2,5 +2,8 @@
 <gresources>
 	<gresource prefix="/keyremapper">
 	  <file>resources/10key.png</file>
+	  <file>resources/10key-r.png</file>
+	  <file>resources/10key-g.png</file>
+	  <file>resources/10key-b.png</file>
   </gresource>
 </gresources>
