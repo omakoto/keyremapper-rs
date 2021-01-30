@@ -9,11 +9,7 @@ use std::{
 };
 
 use clap::{value_t, Arg};
-use keyremapper::{
-    evdev::{self, ec},
-    res::ResourceIcon,
-    KeyRemapper, KeyRemapperConfiguration,
-};
+use keyremapper::{KeyRemapper, KeyRemapperConfiguration, evdev::{self, ec}, res::{LazyResource, ResourceIcon}};
 
 use parking_lot::Mutex;
 
@@ -133,22 +129,21 @@ struct State {
 
 impl State {}
 
-const ICONS: &'static [u8] = include_bytes!("icons.bin");
-
 lazy_static::lazy_static! {
     static ref STATE: Arc<Mutex<RefCell<State>>> = Arc::new(Mutex::new(RefCell::new(State::default())));
 
-    static ref ICON_MAIN: ResourceIcon = ResourceIcon::from_bytes(
-        NAME,
-        "/keyremapper/resources/keyboard.png",
-        ICONS,
-    );
+    static ref ICONS: LazyResource = LazyResource::from_bytes(NAME, include_bytes!("icons.bin"));
+    // static ref ICON_MAIN: ResourceIcon = ResourceIcon::from_bytes(
+    //     NAME,
+    //     "/keyremapper/resources/keyboard.png",
+    //     ICONS,
+    // );
 
-    static ref ICON_ALT: ResourceIcon = ResourceIcon::from_bytes(
-        NAME,
-        "/keyremapper/resources/keyboard-alt.png",
-        ICONS,
-    );
+    // static ref ICON_ALT: ResourceIcon = ResourceIcon::from_bytes(
+    //     NAME,
+    //     "/keyremapper/resources/keyboard-alt.png",
+    //     ICONS,
+    // );
 }
 
 // Returns true if the active window is Chrome.
@@ -167,6 +162,8 @@ fn is_chrome() -> bool {
 /// Entry point.
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+
+    let icons = LazyResource::from_bytes(NAME, include_bytes!("icons.bin"));
 
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
