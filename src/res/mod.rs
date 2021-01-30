@@ -7,8 +7,6 @@ use std::{
     time::SystemTime,
 };
 
-type ResourcesFetcher = dyn Fn() -> gio::Resource;
-
 fn copy_stream(ins: &gio::InputStream, outs: &mut File) -> Result<(), Box<dyn Error>> {
     let mut buf = [0_u8; 4 * 1024];
     let mut total_size = 0;

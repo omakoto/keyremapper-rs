@@ -6,7 +6,7 @@ use std::{cell::RefCell, error::Error, path::PathBuf, process, sync::Arc, time::
 use clap::{value_t, Arg};
 use keyremapper::{
     evdev::{self, ec},
-    res::ResourceIcon,
+    res::Resources,
     KeyRemapper, KeyRemapperConfiguration,
 };
 use parking_lot::ReentrantMutex;
@@ -15,17 +15,18 @@ const NAME: &str = "Shortcut-Remote-Remapper";
 const DEVICE_RE: &str = r#"^UGEE TABLET TABLET KT01$"#;
 const ID_RE: &str = "^";
 
-const ICONS: &'static [u8] = include_bytes!("icons.bin");
-
 lazy_static::lazy_static! {
     static ref REMAPPER: Arc<ReentrantMutex<RefCell<Remapper>>> =
         Arc::new(ReentrantMutex::new(RefCell::new(Remapper::new())));
-    static ref ICON_R: ResourceIcon = ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key-r.png", ICONS);
-    static ref ICON_G: ResourceIcon = ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key-g.png", ICONS);
-    static ref ICON_B: ResourceIcon = ResourceIcon::from_bytes(NAME, "/keyremapper/resources/10key-b.png", ICONS);
 
-    // Grr, can't make it work.
-    // static ref ALL_ICONS: &'static [PathBuf] = &[ICON_R.get_path(), ICON_G.get_path(), ICON_B.get_path()];
+    static ref ICONS: [PathBuf;3] = {
+        let mut res = Resources::from_bytes(NAME, include_bytes!("icons.bin"));
+        return [
+            res.get_icon("/keyremapper/resources/10key-r.png"),
+            res.get_icon("/keyremapper/resources/10key-g.png"),
+            res.get_icon("/keyremapper/resources/10key-b.png"),
+        ];
+    };
 }
 
 const KEY_LABELS: &'static [&str] = &["1", "2", "3", "4", "5", "6", "7", "8", "9", "Left", "Right", "Button"];
@@ -128,11 +129,7 @@ impl Remapper {
         }
         km.show_notification_with_timeout(&body, Duration::from_secs(5));
 
-        km.set_icon(match self.mode {
-            0 => ICON_R.get_path(),
-            1 => ICON_G.get_path(),
-            _ => ICON_B.get_path(),
-        });
+        km.set_icon(&ICONS[self.mode]);
     }
 
     fn on_start(&self, km: &KeyRemapper) {
@@ -195,7 +192,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Set up the config.
     let mut config = KeyRemapperConfiguration::new(NAME, DEVICE_RE);
     config
-        .set_icon(ICON_R.get_path())
+        .set_icon(&ICONS[0])
         .set_id_regex(ID_RE)
         .set_grab(true)
         .set_use_non_keyboard(true)
