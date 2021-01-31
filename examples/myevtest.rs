@@ -7,7 +7,7 @@ use std::{
 use keyremapper::evdev::{self, EvdevDevice};
 
 fn pick_device() -> Result<EvdevDevice, Box<dyn Error>> {
-    let devices = evdev::list_devices()?;
+    let devices = evdev::list_devices(false)?;
 
     for device in &devices {
         println!("{} {}", device.path(), device.name())

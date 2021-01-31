@@ -41,7 +41,6 @@ pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 /// Find all the evdev devices matching the given `KeyRemapperConfiguration`.
 fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDevice>> {
     log::debug!("Looking for devices...");
-    let mut selected: Vec<evdev::EvdevDevice> = vec![];
 
     let device_name_re = config.device_name_regex_re.as_ref().unwrap();
     let id_re = config.id_regex_re.as_ref().unwrap();
@@ -100,25 +99,7 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
         return true;
     };
 
-    for mut device in evdev::list_devices_from_path_with_filter("/dev/input/event*", filter)? {
-        log::info!("Using device {} {}...", device.name(), device.id_str());
-        if config.grab_devices {
-            match device.grab(true) {
-                Ok(_) => {}
-                Err(evdev::EvdevError::DeviceGrabError) => {
-                    eprintln!("Unable to grab device {}. Already grabbed?", device.name());
-                    continue;
-                }
-                Err(err) => {
-                    return Err(Box::new(err));
-                }
-            }
-        }
-
-        selected.push(device);
-    }
-
-    return Ok(selected);
+    return Ok(evdev::list_devices_from_path_with_filter(config.grab_devices, "/dev/input/event*", filter)?);
 }
 
 pub struct KeyRemapperInput {

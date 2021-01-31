@@ -364,35 +364,52 @@ impl Drop for EvdevDevice {
     }
 }
 
-pub fn list_devices() -> Result<Vec<EvdevDevice>, EvdevError> {
-    return list_devices_from_path("/dev/input/event*");
+pub fn list_devices(grab: bool) -> Result<Vec<EvdevDevice>, EvdevError> {
+    return list_devices_from_path(grab, "/dev/input/event*");
 }
 
-pub fn list_devices_from_path(device_path_glob: &str) -> Result<Vec<EvdevDevice>, EvdevError> {
-    return list_devices_from_path_with_filter(device_path_glob, |_device| true);
+pub fn list_devices_from_path(grab: bool, device_path_glob: &str) -> Result<Vec<EvdevDevice>, EvdevError> {
+    return list_devices_from_path_with_filter(grab, device_path_glob, |_device| true);
 }
 
-pub fn list_devices_from_path_with_filter<F>(device_path_glob: &str, filter: F) -> Result<Vec<EvdevDevice>, EvdevError>
+pub fn list_devices_from_path_with_filter<F>(grab: bool, device_path_glob: &str, filter: F) -> Result<Vec<EvdevDevice>, EvdevError>
 where
     F: Fn(&EvdevDevice) -> bool,
 {
     let mut ret: Vec<EvdevDevice> = vec![];
 
-    for entry in glob::glob(device_path_glob).expect("Failed to list devices ") {
+    for entry in glob::glob(device_path_glob).expect("Failed to list devices") {
         match entry {
             Ok(path) => {
-                let device = match EvdevDevice::with_path(path.as_path()) {
+                let mut device = match EvdevDevice::with_path(path.as_path()) {
                     Ok(device) => device,
                     Err(e) => {
                         eprintln!("Unable to open device {:?}: {}", path, e);
                         continue;
                     }
                 };
+                // Try grabbing it and see if it's already grabbed.
+                // (Even if grab is false, because if it's grabbed we can't read events from it.)
+                match device.grab(true) {
+                    Ok(_) => {}
+                    Err(EvdevError::DeviceGrabError) => {
+                        eprintln!("Skipping already grabbed device \"{}\"", device.name());
+                        continue;
+                    }
+                    Err(err) => {
+                        eprintln!("Ignoring device \"{}\" because device couldn't be grabbed: {} ", device.name(), err);
+                        continue;
+                    }
+                }
+                if !grab {
+                    device.grab(false).expect("Failed to ungrab");
+                }
+
                 if !filter(&device) {
                     log::debug!("Skip: device={:?}", device);
                     continue;
                 }
-                log::debug!("Detectd: device={:?}", device);
+                log::debug!("Detected: device={:?}", device);
                 ret.push(device);
             }
             Err(e) => {
