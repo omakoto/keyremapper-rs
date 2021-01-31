@@ -1,11 +1,12 @@
 //! UI related utilities.
-// Copied from https://www.reddit.com/r/rust/comments/f7yrle/get_information_about_current_window_xorg/
+// Ported from https://github.com/UltimateHackingKeyboard/current-window-linux/blob/master/get-current-window.c
+// Use xprop(1) to list all properties.
 
-use libc::{c_int, c_uchar, c_uint, c_ulong};
+use libc::{c_char, c_int, c_uchar, c_uint, c_ulong};
 use std::{error::Error, ptr};
-use x11::xlib;
+use x11::xlib::{self, Display};
 
-use crate::native::c_string_from_str;
+use crate::native::{c_string_from_str, string_from_c_str};
 
 // Note, looks like this doesn't need to be called on the I/O thread to use `get_active_window_info()`.
 pub fn x_init_threads() {
@@ -18,132 +19,112 @@ pub fn x_init_threads() {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct WindowInfo {
+    pub pid: u64,
     pub title: String,
     pub class_group_name: String,
     pub clsas_instance_name: String,
 }
 
 impl WindowInfo {
-    pub fn from_active_window() -> Result<WindowInfo, Box<dyn Error>> {
+    pub fn from_active_window() -> anyhow::Result<WindowInfo> {
         return get_active_window_info();
     }
 }
 
 #[test]
 fn test_from_active_window() {
-    x_init_threads();
-    println!("Active window={:?}", WindowInfo::from_active_window());
+    // x_init_threads();
+    println!("Active window={:?}", WindowInfo::from_active_window().unwrap());
 }
 
-fn get_active_window_info() -> Result<WindowInfo, Box<dyn Error>> {
+unsafe fn get_property(display: *mut Display, window: c_ulong, filter: &str) -> anyhow::Result<*const c_uchar> {
+    let filter_atom = xlib::XInternAtom(display, c_string_from_str(filter).as_ptr(), 1);
+
+    let mut actual_type: c_ulong = 0;
+    let mut actual_format: c_int = 0;
+    let mut ntimes: c_ulong = 0;
+    let mut bytes_after: c_ulong = 0;
+    let mut prop: *mut c_uchar = ptr::null_mut();
+
+    let status = xlib::XGetWindowProperty(
+        display,
+        window,
+        filter_atom,
+        0,
+        1024,
+        0, // False
+        xlib::AnyPropertyType as u64,
+        &mut actual_type,
+        &mut actual_format,
+        &mut ntimes,
+        &mut bytes_after,
+        &mut prop,
+    );
+    if status != xlib::Success as i32 {
+        anyhow::bail!("XGetWindowProperty() failed: status={}", status);
+    }
+    log::debug!(
+        "XGetWindowProperty({}) returned Success. type={} format={} prop={:?}",
+        filter,
+        actual_type,
+        actual_format,
+        prop
+    );
+    if prop.is_null() {
+        anyhow::bail!("XGetWindowProperty() returned null");
+    }
+
+    return Ok(prop);
+}
+
+unsafe fn get_long_property(display: *mut Display, window: c_ulong, filter: &str) -> anyhow::Result<u64> {
+    let res = get_property(display, window, filter)?;
+    return Ok((*res as u64) + ((*res.offset(1) as u64) << 8) + ((*res.offset(2) as u64) << 16) + ((*res.offset(3) as u64) << 24));
+}
+
+unsafe fn get_string_property(display: *mut Display, window: c_ulong, filter: &str) -> anyhow::Result<String> {
+    let res = get_property(display, window, filter)?;
+    return Ok(string_from_c_str(res as *const c_char));
+}
+
+unsafe fn get_double_string_property(display: *mut Display, window: c_ulong, filter: &str) -> anyhow::Result<(String, String)> {
+    let res = get_property(display, window, filter)?;
+
+    // The result contains two consecutive c-strings.
+
+    let first = string_from_c_str(res as *const c_char);
+
+    let mut i = 0;
+    loop {
+        if *res.offset(i) == 0 {
+            break;
+        }
+        i += 1;
+    }
+    let second = string_from_c_str(res.offset(i + 1) as *const c_char);
+
+    return Ok((first, second));
+}
+
+fn get_active_window_info() -> anyhow::Result<WindowInfo> {
     unsafe {
         let display = xlib::XOpenDisplay(ptr::null());
         if display == ptr::null_mut() {
-            panic!();
+            anyhow::bail!("XOpenDisplay() failed. (Is it under X11?)");
         }
         let screen = xlib::XDefaultScreen(display);
-        let window = xlib::XRootWindow(display, screen);
+        let root = xlib::XRootWindow(display, screen);
 
-        let filter_atom = xlib::XInternAtom(display, c_string_from_str("_NET_ACTIVE_WINDOW").as_ptr(), 1);
+        let active = get_long_property(display, root, "_NET_ACTIVE_WINDOW")?;
+        let pid = get_long_property(display, active, "_NET_WM_PID")?;
+        let title = get_string_property(display, active, "_NET_WM_NAME")?;
+        let class = get_double_string_property(display, active, "WM_CLASS")?;
 
-        let mut actual_type: c_ulong = 0;
-        let mut actual_format: c_int = 0;
-        let mut ntimes: c_ulong = 0;
-        let mut bytes_after: c_ulong = 0;
-        let mut prop: *mut c_uchar = ptr::null_mut();
-        let status = xlib::XGetWindowProperty(
-            display,
-            window,
-            filter_atom,
-            0,
-            1024,
-            0,
-            xlib::AnyPropertyType as u64,
-            &mut actual_type,
-            &mut actual_format,
-            &mut ntimes,
-            &mut bytes_after,
-            &mut prop,
-        );
-        if status != xlib::Success as i32 {
-            panic!("XGetWindowProperty failed: status={}", status);
-        }
-        // tood
+        return Ok(WindowInfo {
+            pid,
+            title,
+            class_group_name: class.1,
+            clsas_instance_name: class.0,
+        });
     }
-
-    todo!();
 }
-
-// fn get_active_window_info() -> Result<WindowInfo, Box<dyn Error>> {
-//     // Set up our state
-//     let (conn, screen) = XCBConnection::connect(None)?;
-//     let root = conn.setup().roots[screen].root;
-//     let mut net_active_window = LazyAtom::new(&conn, false, b"_NET_ACTIVE_WINDOW");
-//     let mut net_wm_name = LazyAtom::new(&conn, false, b"_NET_WM_NAME");
-//     let mut utf8_string = LazyAtom::new(&conn, false, b"UTF8_STRING");
-
-//     let focus = find_active_window(&conn, root, net_active_window.atom()?)?;
-
-//     // Collect the replies to the atoms
-//     let (net_wm_name, utf8_string) = (net_wm_name.atom()?, utf8_string.atom()?);
-//     let (wm_class, string) = (Atom::WM_CLASS.into(), Atom::STRING.into());
-
-//     // Get the property from the window that we need
-//     let name = conn.get_property(false, focus, net_wm_name, utf8_string, 0, u32::max_value())?;
-//     let class = conn.get_property(false, focus, wm_class, string, 0, u32::max_value())?;
-//     let (name, class) = (name.reply()?, class.reply()?);
-
-//     // Print out the result
-//     let (instance, class) = parse_wm_class(&class);
-
-//     // println!("Window name: {:?}", parse_string_property(&name));
-//     // println!("Window instance: {:?}", instance);
-//     // println!("Window class: {:?}", class);
-
-//     return Ok(WindowInfo {
-//         title: parse_string_property(&name).to_string(),
-//         class_group_name: class.to_string(),
-//         clsas_instance_name: instance.to_string(),
-//     });
-// }
-
-// fn find_active_window(conn: &impl Connection, root: WINDOW, net_active_window: ATOM) -> Result<WINDOW, Box<dyn Error>> {
-//     let window = Atom::WINDOW.into();
-//     let active_window = conn.get_property(false, root, net_active_window, window, 0, 1)?.reply()?;
-//     if active_window.format == 32 && active_window.length == 1 {
-//         // Things will be so much easier with the next release:
-//         // This does active_window.value32().next().unwrap()
-//         Ok(u32::try_parse(&active_window.value)?.0)
-//     } else {
-//         // Query the input focus
-//         Ok(conn.get_input_focus()?.reply()?.focus)
-//     }
-// }
-
-// fn parse_string_property(property: &GetPropertyReply) -> &str {
-//     std::str::from_utf8(&property.value).unwrap_or("Invalid utf8")
-// }
-
-// fn parse_wm_class(property: &GetPropertyReply) -> (&str, &str) {
-//     if property.format != 8 {
-//         panic!("Malformed property: wrong format");
-//         // return ("Malformed property: wrong format", "Malformed property: wrong format");
-//     }
-//     let value = &property.value;
-//     // The property should contain two null-terminated strings. Find them.
-//     if let Some(middle) = value.iter().position(|&b| b == 0) {
-//         let (instance, class) = value.split_at(middle);
-//         // Skip the null byte at the beginning
-//         let mut class = &class[1..];
-//         // Remove the last null byte from the class, if it is there.
-//         if class.last() == Some(&0) {
-//             class = &class[..class.len() - 1];
-//         }
-//         let instance = std::str::from_utf8(instance);
-//         let class = std::str::from_utf8(class);
-//         (instance.unwrap_or("Invalid utf8"), class.unwrap_or("Invalid utf8"))
-//     } else {
-//         panic!("Missing null byte");
-//         // ("Missing null byte", "Missing null byte")
-//     }
-// }
