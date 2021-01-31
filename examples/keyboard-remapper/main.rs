@@ -132,7 +132,21 @@ struct State {
     alt_mode: bool,
 }
 
-impl State {}
+impl State {
+    fn set_alt_mode(&mut self, km: &KeyRemapper, enable: bool) {
+        if self.alt_mode == enable {
+            return;
+        }
+        self.alt_mode = enable;
+        if enable {
+            km.set_icon(&ICONS.alt_mode);
+            km.show_notification_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
+        } else {
+            km.set_icon(&ICONS.main);
+            km.show_notification_with_timeout("Leaving ALT mode", Duration::from_millis(100));
+        }
+    }
+}
 
 struct Icons {
     main: PathBuf,
@@ -284,12 +298,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
         if !state.alt_mode && ev.code == ec::KEY_ESC {
-            // Ctrl + ESC -> Enter ALT mode
+            // Ctrl + ESC or ESC+F1 -> Enter ALT mode
             if ev.is_key_down(ec::KEY_ESC, "ce") {
-                state.alt_mode = true;
-                km.set_icon(&ICONS.alt_mode);
-                km.show_notification_with_timeout("ALT mode", Duration::from_secs(60 * 60 * 24));
-                return;
+                state.set_alt_mode(km, true);
             }
 
             if ev.is_key_down_event() {
@@ -310,13 +321,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // ESC or ENTER will finish the ALT mode.
         if state.alt_mode && ev.is_any_key_down(&[ec::KEY_ENTER, ec::KEY_ESC], "*") {
-            state.alt_mode = false;
-            km.set_icon(&ICONS.main);
-            km.show_notification_with_timeout("Left ALT mode", Duration::from_millis(100));
+            state.set_alt_mode(km, false);
             return;
         }
 
         match 0 {
+            // ESC + F1 also enables alt mode.
+            _ if ev.is_key_down(ec::KEY_F1, "e") => state.set_alt_mode(km, true),
+
             // ESC + H / J / K / L -> emulate wheel. Also support ESC+SPACE / C for left-hand-only scrolling.
             _ if ev.is_any_key(&[ec::KEY_J, ec::KEY_K, ec::KEY_SPACE, ec::KEY_C], "*") && (state.alt_mode || km.is_esc_on()) => {
                 let speed = match 0 {
