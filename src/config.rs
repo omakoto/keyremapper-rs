@@ -233,7 +233,7 @@ impl KeyRemapperConfiguration {
     }
 
     pub(crate) fn set_defaults(&mut self) -> &mut KeyRemapperConfiguration {
-        let name_cleansed = Regex::new(r#"\s+"#).unwrap().replace(&self.name, "_").to_string();
+        let name_cleansed = Regex::new(r#"[\s/]+"#).unwrap().replace(&self.name, "_").to_string();
         if self.global_lock_name.is_empty() {
             self.global_lock_name = name_cleansed.clone();
         }
