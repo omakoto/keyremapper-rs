@@ -133,6 +133,7 @@ struct State {
     color_mode: ColorMode,
     last_was_syn_report: bool,
     last_event_time: Option<Instant>,
+    last_device_id: String,
 }
 
 impl Default for State {
@@ -141,6 +142,7 @@ impl Default for State {
             color_mode: ColorMode::Auto,
             last_was_syn_report: false,
             last_event_time: None,
+            last_device_id: String::new(),
         };
     }
 }
@@ -198,7 +200,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let show_device = match state.last_event_time {
             None => true,
-            Some(time) => state.last_was_syn_report && Instant::now().duration_since(time) > Duration::from_millis(200),
+            Some(_) if device.id() != state.last_device_id => true,
+            Some(time) => state.last_was_syn_report && Instant::now().duration_since(time) > Duration::from_millis(500),
         };
         if show_device {
             println!(
@@ -226,6 +229,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         state.last_event_time = Some(Instant::now());
         state.last_was_syn_report = ev.is_syn_report();
+        state.last_device_id = device.id();
     });
 
     keyremapper::start(config);

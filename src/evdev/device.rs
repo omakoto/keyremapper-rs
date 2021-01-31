@@ -221,6 +221,11 @@ impl EvdevDevice {
         }
     }
 
+    /// Unique ID of the device.
+    pub fn id(&self) -> String {
+        return self.path();
+    }
+
     pub fn path(&self) -> String {
         return self.path.clone();
     }
