@@ -92,7 +92,7 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
 
         if device.name().starts_with(UINPUT_DEVICE_NAME_PREFIX) {
             if config.grab_devices {
-                log::warn!("Skipping {}: Cannot use uinput device created by another instance in grab-mode", device.name());
+                eprintln!("Skipping {}: Cannot use uinput device created by another instance in grab-mode", device.name());
                 return false; // Don't use uinput devices from our own and other instances.
             }
         }
@@ -106,7 +106,7 @@ fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDev
             match device.grab(true) {
                 Ok(_) => {}
                 Err(evdev::EvdevError::DeviceGrabError) => {
-                    log::warn!("Unable to grab device {}. Already grabbed?", device.name());
+                    eprintln!("Unable to grab device {}. Already grabbed?", device.name());
                     continue;
                 }
                 Err(err) => {
@@ -587,7 +587,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
             let mut events = match device.next_events() {
                 Ok(event) => event,
                 Err(_) => {
-                    log::warn!("Unable to read event; device closed?");
+                    eprintln!("Unable to read event; device closed?");
                     thread::sleep(Duration::from_millis(50));
                     continue;
                 }

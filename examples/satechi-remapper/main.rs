@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ec::KEY_PREVIOUSSONG => ec::KEY_LEFT,
             ec::KEY_NEXTSONG => ec::KEY_RIGHT,
             known => {
-                log::warn!("Unknown input: code={}", known);
+                eprintln!("Unknown input: code={}", known);
                 return;
             }
         };

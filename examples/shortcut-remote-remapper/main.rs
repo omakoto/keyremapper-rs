@@ -151,7 +151,7 @@ impl Remapper {
         let key_index = match find_key_index(ev.code) {
             Some(i) => i,
             None => {
-                log::warn!("Unknown key detected: {}", ev);
+                eprintln!("Unknown key detected: {}", ev);
                 return;
             }
         };

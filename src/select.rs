@@ -120,7 +120,7 @@ pub(crate) fn select(fds: &Vec<RawFd>) -> io::Result<RawFd> {
                     return Ok(i);
                 }
             }
-            log::warn!("No fds selected after pselect()!");
+            eprintln!("No fds selected after pselect()!");
         }
     }
 }

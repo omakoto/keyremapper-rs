@@ -156,7 +156,7 @@ fn is_chrome() -> bool {
     let active_window = match keyremapper::ui::WindowInfo::from_active_window() {
         Ok(res) => res,
         Err(e) => {
-            log::warn!("Unable to get active window info: {}", e);
+            eprintln!("Unable to get active window info: {}", e);
             return false;
         }
     };
@@ -264,7 +264,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 // Send the other keys with alt+ctrl+shift+meta.
                 _ if ev.is_key_down_event() => km.press_key(ev.code, "sacw"),
-                _ => log::warn!("Unexpected event {}", ev),
+                _ => eprintln!("Unexpected event {}", ev),
             }
             return;
         }

@@ -315,7 +315,7 @@ impl EvdevDevice {
                     if sync {
                         return Ok(InputEvent::from_native_input_event(&ie));
                     }
-                    log::warn!("LIBEVDEV_READ_STATUS_SYNC detected!");
+                    eprintln!("LIBEVDEV_READ_STATUS_SYNC detected!");
                     return Err(EvdevError::InternalEventDropped);
                 }
                 panic!("libevdev_next_event returned unknown result: {}", status)
@@ -334,7 +334,7 @@ impl EvdevDevice {
                     ret.push(ie);
                 }
                 Err(EvdevError::InternalEventDropped) => {
-                    log::warn!("Starting to sync...");
+                    eprintln!("Starting to sync...");
                     sync = true;
                 }
                 Err(EvdevError::ErrnoError(e)) if sync && e == libc::EAGAIN => {
@@ -344,7 +344,7 @@ impl EvdevDevice {
             };
         }
         if sync {
-            log::warn!("Sync done.");
+            eprintln!("Sync done.");
         }
         Ok(ret)
     }
@@ -384,7 +384,7 @@ where
                 let device = match EvdevDevice::with_path(path.as_path()) {
                     Ok(device) => device,
                     Err(e) => {
-                        log::error!("Unable to open device {:?}: {}", path, e);
+                        eprintln!("Unable to open device {:?}: {}", path, e);
                         continue;
                     }
                 };
@@ -396,7 +396,7 @@ where
                 ret.push(device);
             }
             Err(e) => {
-                log::error!("Glob failed: {:?}", e);
+                eprintln!("Glob failed: {:?}", e);
                 continue;
             }
         }
