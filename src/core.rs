@@ -551,6 +551,7 @@ fn main_loop(key_remapper: &KeyRemapper) {
                 key_remapper.show_notification(msg);
                 (*callbacks.on_devices_lost)(&key_remapper);
 
+                key_remapper.reset_out(); // Release all the pressed buttons.
                 input.release_devices(); // Close all the input devices.
 
                 key_remapper.reset_out();
