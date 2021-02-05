@@ -55,7 +55,7 @@ provide a regex mathing the vendor/product ID with the `--match-id` option.
 
 - Install all the samples: run `./install-examples.sh`
 
-- [keyboard-remapper](blob/master/examples/keyboard-remapper/main.rs)
+- [keyboard-remapper](examples/keyboard-remapper/main.rs)
   - For the following 3 keyboards:
     - The Thinkpad Internal keyboard (at least for X1 carbon gen7 and P1 gen2)
     - Topre Realforce
@@ -68,12 +68,12 @@ provide a regex mathing the vendor/product ID with the `--match-id` option.
   - App specific remap -- on Chrome, use `F5`/`F6` as `BACK`/`FORWARD`. This can be
     done using `keyremapper::ui::WindowInfo::from_active_window()`.
 
-- [shortcut-remote-remapper](blob/master/examples/shortcut-remote-remapper/main.rs) for https://www.amazon.com/gp/product/B01NC2LEYP
+- [shortcut-remote-remapper](examples/shortcut-remote-remapper/main.rs) for https://www.amazon.com/gp/product/B01NC2LEYP
 
-- [trackpoint-speedup](blob/master/examples/trackpoint-speedup/main.rs) Speed up Thinkpad trackpoint.
+- [trackpoint-speedup](examples/trackpoint-speedup/main.rs) Speed up Thinkpad trackpoint.
    I can never figure out how to easily do it.
 
-- [evsniff](blob/master/examples/evsniff/main.rs) Kind of like `evtest(1)` but reads from all the devices at once.
+- [evsniff](examples/evsniff/main.rs) Kind of like `evtest(1)` but reads from all the devices at once.
   Use this to figure out the device name and its vendor/product IDs.
 
 ## TODOs
