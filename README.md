@@ -73,7 +73,7 @@ provide a regex mathing the vendor/product ID with the `--match-id` option.
 - [trackpoint-speedup](blob/main/examples/trackpoint-speedup/main.rs) Speed up Thinkpad trackpoint.
    I can never figure out how to easily do it.
 
-- [evsniff](blob/main/examples/evsniff/main.rs) Kind of like `evtest(1)` but reads all the events at once.
+- [evsniff](blob/main/examples/evsniff/main.rs) Kind of like `evtest(1)` but reads from all the devices at once.
   Use this to figure out the device name and its vendor/product IDs.
 
 ## TODOs
