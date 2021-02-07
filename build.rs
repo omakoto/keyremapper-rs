@@ -29,6 +29,7 @@ fn compile_resources(src: &str) {
 
 fn main() {
     println!("cargo:rerun-if-changed=src/wrapper.h");
+    println!("cargo:rerun-if-changed=resources/*");
 
     println!("cargo:rustc-link-lib=evdev");
     println!("cargo:rustc-link-lib=udev");
