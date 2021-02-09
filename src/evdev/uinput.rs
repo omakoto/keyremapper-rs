@@ -180,14 +180,14 @@ impl UinputInner {
 
 /// Thread safe version of Uinput.
 #[derive(Debug, Clone)]
-pub struct SyncedUinput {
+pub struct Uinput {
     lock: Arc<ReentrantMutex<()>>,
     uinput: Arc<RwLock<UinputInner>>,
 }
 
-impl SyncedUinput {
-    pub fn new(name: &str, events: &EventsDescriptor) -> Result<SyncedUinput, EvdevError> {
-        Ok(SyncedUinput {
+impl Uinput {
+    pub fn new(name: &str, events: &EventsDescriptor) -> Result<Uinput, EvdevError> {
+        Ok(Uinput {
             lock: Arc::new(ReentrantMutex::new(())),
             uinput: Arc::new(RwLock::new(UinputInner::new(name, events)?)),
         })

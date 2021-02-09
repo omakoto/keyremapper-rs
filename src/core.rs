@@ -21,7 +21,7 @@ use crate::{
     evdev::{
         self,
         ec::{self, EventType},
-        uinput::SyncedUinput,
+        uinput::Uinput,
         EventsDescriptor, InputEventTracker,
     },
     res::{self, *},
@@ -206,23 +206,23 @@ impl KeyRemapperUi {
 }
 
 /// Create a new uinput device using the given `KeyRemapperConfiguration` with a suffix.
-fn create_uinput(config: &KeyRemapperConfiguration, name_suffix: &str, supported_events: &EventsDescriptor) -> Result<SyncedUinput> {
+fn create_uinput(config: &KeyRemapperConfiguration, name_suffix: &str, supported_events: &EventsDescriptor) -> Result<Uinput> {
     let mut name = config.uinput_devices_prefix.clone();
     name.push_str(name_suffix);
 
-    let ui = SyncedUinput::new(&name, supported_events)?;
+    let ui = Uinput::new(&name, supported_events)?;
     return Ok(ui);
 }
 
 #[derive(Clone)]
 pub struct KeyRemapper {
     config: KeyRemapperConfiguration,
-    uinput: Option<SyncedUinput>,
+    uinput: Option<Uinput>,
     input: Arc<ReentrantMutex<RefCell<KeyRemapperInput>>>,
     input_event_tracker: Arc<ReentrantMutex<RefCell<InputEventTracker>>>,
     ui: Arc<ReentrantMutex<RefCell<KeyRemapperUi>>>,
 
-    all_uinputs: Arc<ReentrantMutex<RefCell<Vec<SyncedUinput>>>>,
+    all_uinputs: Arc<ReentrantMutex<RefCell<Vec<Uinput>>>>,
 }
 
 const MODIFIER_COUNT: usize = 8; // We need this for ModifierState as a const.
@@ -269,18 +269,18 @@ impl KeyRemapper {
     }
 
     /// Create a new uinput device supporting given events using the with a suffix.
-    pub fn create_uinput(&self, name_suffix: &str, supported_events: &EventsDescriptor) -> SyncedUinput {
+    pub fn create_uinput(&self, name_suffix: &str, supported_events: &EventsDescriptor) -> Uinput {
         let u = create_uinput(&self.config, name_suffix, supported_events).expect("failed to create uinput device");
         self.add_uinput(&u);
         return u;
     }
 
     /// Create a new uinput device supporting mouse events using the with a suffix.
-    pub fn create_mouse_uinput(&self, name_suffix: &str) -> SyncedUinput {
+    pub fn create_mouse_uinput(&self, name_suffix: &str) -> Uinput {
         return self.create_uinput(name_suffix, &EventsDescriptor::with_mouse_events());
     }
 
-    fn add_uinput(&self, uinput: &SyncedUinput) {
+    fn add_uinput(&self, uinput: &Uinput) {
         let all_uinputs = self.all_uinputs.lock();
         all_uinputs.borrow_mut().push(uinput.clone());
     }

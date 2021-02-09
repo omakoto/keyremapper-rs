@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use keyremapper::evdev::{ec, uinput::SyncedUinput, InputEvent};
+use keyremapper::evdev::{ec, uinput::Uinput, InputEvent};
 use parking_lot::{Condvar, Mutex};
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ struct Inner {
 #[derive(Debug, Clone)]
 pub struct Wheeler {
     inner: Arc<Mutex<RefCell<Inner>>>,
-    uinput: Arc<SyncedUinput>,
+    uinput: Arc<Uinput>,
     cond: Arc<Condvar>,
 
     normal_scroll_internal: Duration,
@@ -26,7 +26,7 @@ pub struct Wheeler {
 }
 
 impl Wheeler {
-    pub fn new(uinput: SyncedUinput, normal_scroll_internal: Duration, fast_scroll_interval: Duration, first_scroll_delay: Duration) -> Wheeler {
+    pub fn new(uinput: Uinput, normal_scroll_internal: Duration, fast_scroll_interval: Duration, first_scroll_delay: Duration) -> Wheeler {
         let inner = Inner {
             vwheel_speed: 0,
             hwheel_speed: 0,
