@@ -64,13 +64,13 @@ impl Drop for RawUinput {
 
 /// Uinput with event tracking.
 #[derive(Debug, Clone)]
-pub struct Uinput {
+struct UinputInner {
     uinput: RawUinput,
     event_tracker: InputEventTracker,
 }
 
-impl Uinput {
-    pub fn new(name: &str, events: &EventsDescriptor) -> Result<Uinput, EvdevError> {
+impl UinputInner {
+    fn new(name: &str, events: &EventsDescriptor) -> Result<UinputInner, EvdevError> {
         if name.len() == 0 {
             return Err(EvdevError::UinputCreationError("Name must not be empty".to_string()));
         }
@@ -122,7 +122,7 @@ impl Uinput {
             if err < 0 {
                 return Err(EvdevError::ErrnoError(-err));
             }
-            return Ok(Uinput {
+            return Ok(UinputInner {
                 uinput: RawUinput::new(name.to_string(), file, fd, uinput),
                 event_tracker: InputEventTracker::new(),
             });
@@ -130,7 +130,7 @@ impl Uinput {
     }
 
     /// Send a single event. Doesn't automatically send a syn event.
-    pub fn send_event(&mut self, ev: &crate::evdev::InputEvent) -> Result<(), EvdevError> {
+    fn send_event(&mut self, ev: &crate::evdev::InputEvent) -> Result<(), EvdevError> {
         if !self.event_tracker.should_send(ev) {
             return Ok(()); // Redundant event, don't send.
         }
@@ -139,13 +139,13 @@ impl Uinput {
         return Ok(());
     }
 
-    pub fn send_syn_report(&mut self) -> Result<(), EvdevError> {
+    fn send_syn_report(&mut self) -> Result<(), EvdevError> {
         self.send_event(&InputEvent::new_syn_report())?;
         return Ok(());
     }
 
     /// Send multiple events with a SYN_REPORT.
-    pub fn send_events(&mut self, events: &[InputEvent]) -> Result<(), EvdevError> {
+    fn send_events(&mut self, events: &[InputEvent]) -> Result<(), EvdevError> {
         let mut last_event_is_sync = false;
         for ev in events {
             self.send_event(ev)?;
@@ -157,7 +157,7 @@ impl Uinput {
         return Ok(());
     }
 
-    pub fn reset(&mut self) -> Result<(), EvdevError> {
+    fn reset(&mut self) -> Result<(), EvdevError> {
         // let reset_events = self.event_tracker.reset();
         // for ev in &reset_events {
         //     self.send_event(ev)?;
@@ -173,7 +173,7 @@ impl Uinput {
         return Ok(());
     }
 
-    pub fn key_state(&self, code: i32) -> i32 {
+    fn key_state(&self, code: i32) -> i32 {
         return self.event_tracker.key_state(code);
     }
 }
@@ -182,14 +182,14 @@ impl Uinput {
 #[derive(Debug, Clone)]
 pub struct SyncedUinput {
     lock: Arc<ReentrantMutex<()>>,
-    uinput: Arc<RwLock<Uinput>>,
+    uinput: Arc<RwLock<UinputInner>>,
 }
 
 impl SyncedUinput {
     pub fn new(name: &str, events: &EventsDescriptor) -> Result<SyncedUinput, EvdevError> {
         Ok(SyncedUinput {
             lock: Arc::new(ReentrantMutex::new(())),
-            uinput: Arc::new(RwLock::new(Uinput::new(name, events)?)),
+            uinput: Arc::new(RwLock::new(UinputInner::new(name, events)?)),
         })
     }
 
