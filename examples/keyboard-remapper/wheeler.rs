@@ -116,7 +116,10 @@ impl Wheeler {
                     break;
                 }
             }
-            // log::debug!("WHEEL! {} {} @ {}", v, h, consecutive_event_count);
+            if v != 0 || h != 0 {
+                // Make sure all modifiers are released when sending a wheel event.
+                self.uinput.reset().unwrap();
+            }
             if v != 0 {
                 self.uinput.send_event(&InputEvent::new(ec::EventType::EV_REL, ec::REL_WHEEL, v)).unwrap();
                 self.uinput
