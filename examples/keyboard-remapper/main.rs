@@ -308,6 +308,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             if ev.is_key_up_event() && state.pending_esc_pressed {
                 state.pending_esc_pressed = false;
+
+                // If no modifiers are pressed, reset all keys, to recover from a stuck key.
+                if ev.is_key_up(ec::KEY_ESC, "") {
+                    km.reset_out();
+                }
                 km.press_key(ec::KEY_ESC, "*");
             }
             return;

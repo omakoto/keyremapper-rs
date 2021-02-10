@@ -345,6 +345,7 @@ impl KeyRemapper {
 
     /// Reset all uinput devices.
     pub fn reset_out(&self) {
+        log::debug!("reset_out()");
         let all_uinputs = self.all_uinputs.lock();
         for uinput in all_uinputs.borrow_mut().iter() {
             uinput.reset().unwrap();
