@@ -369,6 +369,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ if ev.is_key_on(ec::KEY_HOME, "e") => km.press_key(ec::KEY_LEFT, "a"),
             _ if ev.is_key_on(ec::KEY_END, "e") => km.press_key(ec::KEY_RIGHT, "a"),
 
+            // ESC + left / right -> vol down / up
+            _ if ev.is_key_on(ec::KEY_LEFT, "e") => km.press_key(ec::KEY_VOLUMEDOWN, ""),
+            _ if ev.is_key_on(ec::KEY_RIGHT, "e") => km.press_key(ec::KEY_VOLUMEUP, ""),
+
             // ESC + Pageup -> ctrl + pageup (prev tab)
             // ESC + Pagedown -> ctrl + pagedown (next tab)
             // (meaning ESC + ins/del act as them too on thinkpad.)
