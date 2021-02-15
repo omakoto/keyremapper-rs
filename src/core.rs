@@ -38,6 +38,9 @@ pub(crate) const UINPUT_DEVICE_NAME_PREFIX: &str = "key-remapper";
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
+/// If all these keys are pressed, force stop the process.
+static EMERGENCY_COMBO: &[i32] = &[ec::KEY_Z, ec::KEY_X, ec::KEY_C, ec::KEY_LEFTSHIFT, ec::KEY_LEFTALT];
+
 /// Find all the evdev devices matching the given `KeyRemapperConfiguration`.
 fn find_devices(config: &KeyRemapperConfiguration) -> Result<Vec<evdev::EvdevDevice>> {
     log::debug!("Looking for devices...");
@@ -255,8 +258,8 @@ impl KeyRemapper {
         let input = KeyRemapperInput::new(config.clone()).expect("failed to initialize input devices");
 
         let ret = KeyRemapper {
-            config: config,
-            uinput: uinput,
+            config,
+            uinput,
             input: Arc::new(ReentrantMutex::new(RefCell::new(input))),
             ui: Arc::new(ReentrantMutex::new(RefCell::new(ui))),
             all_uinputs: Arc::new(ReentrantMutex::new(RefCell::new(vec![]))),
@@ -581,8 +584,25 @@ fn main_loop(key_remapper: &KeyRemapper) {
             (*callbacks.on_events_batch)(&key_remapper, &device, &events);
             for ev in &mut events {
                 {
-                    let tracker = key_remapper.input_event_tracker.lock();
-                    tracker.borrow_mut().on_event_sent(ev);
+                    // Update input tracker
+                    let lock = key_remapper.input_event_tracker.lock();
+                    let tracker = lock.borrow_mut();
+                    tracker.on_event_sent(ev);
+
+                    // Check for emergency como
+                    let mut emergency = true;
+                    for key in EMERGENCY_COMBO {
+                        if tracker.key_state(*key) == 0 {
+                            emergency = false;
+                            break;
+                        }
+                        // println!("XXX {} pressed", key);
+                    }
+                    if emergency {
+                        eprintln!("Emergency stop!");
+                        process_clean_up(key_remapper, false);
+                        std::process::exit(9);
+                    }
                 }
                 ev.set_modifiers(
                     key_remapper.is_alt_on(),
