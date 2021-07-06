@@ -294,6 +294,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
+        if ev.is_key_down(ec::KEY_ESC, "") {
+            // ESC down will always stop the mouse wheel.
+            state.wheeler.as_mut().unwrap().set_vwheel(0);
+            state.wheeler.as_mut().unwrap().set_hwheel(0);
+        }
+
         // Special handling for ESC: Don't send "ESC-press" on key-down, but instead send it on key-*up*, unless
         // any keys are pressed between the down and up.
         // This allows to make "ESC + BACKSPACE" act as a DEL press without sending ESC.
