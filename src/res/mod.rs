@@ -1,4 +1,4 @@
-use gio::{prelude::*, NONE_CANCELLABLE};
+use gio::prelude::*;
 use std::io::prelude::*;
 use std::{
     error::Error,
@@ -6,6 +6,8 @@ use std::{
     path::PathBuf,
     time::SystemTime,
 };
+
+const NONE_CANCELLABLE: Option<&gio::Cancellable> = None;
 
 fn copy_stream(ins: &gio::InputStream, outs: &mut File) -> Result<(), Box<dyn Error>> {
     let mut buf = [0_u8; 4 * 1024];
