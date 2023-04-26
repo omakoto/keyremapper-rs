@@ -60,11 +60,12 @@ impl Display for InputEvent {
 
         return write!(
             f,
-            "{{InputEvent: time={}.{:06} type={} code={} value={}{}}}",
+            "{{InputEvent: time={}.{:06} type={} code={} value={} [{:x}]{}}}",
             self.time_sec,
             self.time_usec,
             self.type_name(),
             self.code_name(),
+            self.value,
             self.value,
             modifiers,
         );
