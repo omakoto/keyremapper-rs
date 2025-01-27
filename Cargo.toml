@@ -58,5 +58,5 @@ signal-hook = "0.3.4"
 x11 = "2.18.2"
 
 [build-dependencies]
-bindgen = "0.60"
+bindgen = "0.71.1"
 regex = "1.4.3"
